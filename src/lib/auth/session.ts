@@ -43,8 +43,12 @@ export function verifySessionToken(token: string): SessionPayload | null {
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const cookieStore = cookies();
-  const sessionCookie = cookieStore.get('carepulse_session');
-  if (!sessionCookie?.value) return null;
-  return verifySessionToken(sessionCookie.value);
+  try {
+    const cookieStore = cookies();
+    const sessionCookie = cookieStore.get('carepulse_session');
+    if (!sessionCookie?.value) return null;
+    return verifySessionToken(sessionCookie.value);
+  } catch {
+    return null;
+  }
 }

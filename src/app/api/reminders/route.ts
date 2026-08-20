@@ -1,37 +1,69 @@
 import { NextResponse } from 'next/server';
-import { createMedicationReminder } from '@/lib/reminders/service';
-import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth/session';
+import { createMedicationReminder, getPatientReminders } from '@/lib/reminders/service';
+import { Role } from '@/lib/types';
+import { z } from 'zod';
+
+const CreateReminderSchema = z.object({
+  patientId: z.string().optional(),
+  appointmentId: z.string().optional(),
+  medication: z.string().min(2, 'Medication name required'),
+  dosage: z.string().min(1, 'Dosage required'),
+  frequency: z.string().min(1, 'Frequency required'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const patientId = searchParams.get('patientId');
-
-  if (!patientId) {
-    return NextResponse.json({ error: 'patientId is required' }, { status: 400 });
-  }
-
   try {
-    const reminders = await prisma.medicationReminder.findMany({
-      where: { patientId },
-      orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json({ reminders });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch reminders' }, { status: 500 });
+    // ROUTE CLASSIFICATION: PATIENT_ONLY / DOCTOR_ONLY / ADMIN_ONLY
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const requestedPatientId = searchParams.get('patientId') || session.userId;
+
+    if (session.role === Role.PATIENT && requestedPatientId !== session.userId) {
+      return NextResponse.json({ error: 'Forbidden: Cannot view another patient reminders' }, { status: 403 });
+    }
+
+    const reminders = await getPatientReminders(requestedPatientId);
+    return NextResponse.json({ success: true, reminders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to fetch reminders' }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const { patientId, medication, dosage, frequency, startDate, endDate } = await req.json();
-
-    if (!patientId || !medication || !dosage || !frequency || !startDate || !endDate) {
-      return NextResponse.json({ error: 'All reminder fields are required' }, { status: 400 });
+    // ROUTE CLASSIFICATION: PATIENT_ONLY / DOCTOR_ONLY / ADMIN_ONLY
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
-    const reminder = await createMedicationReminder(patientId, medication, dosage, frequency, startDate, endDate);
-    return NextResponse.json({ message: 'Medication reminder created', reminder }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to create reminder' }, { status: 400 });
+    const body = await req.json();
+    const validated = CreateReminderSchema.parse(body);
+
+    const targetPatientId = session.role === Role.PATIENT ? session.userId : (validated.patientId || session.userId);
+
+    const reminder = await createMedicationReminder(
+      targetPatientId,
+      validated.medication,
+      validated.dosage,
+      validated.frequency,
+      validated.appointmentId,
+      validated.startDate ? new Date(validated.startDate) : undefined,
+      validated.endDate ? new Date(validated.endDate) : undefined
+    );
+
+    return NextResponse.json({ success: true, reminder });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+    }
+    return NextResponse.json({ error: err.message || 'Failed to create reminder' }, { status: 400 });
   }
 }

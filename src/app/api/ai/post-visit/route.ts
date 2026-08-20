@@ -1,34 +1,34 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
 import { invokePostVisitLLM } from '@/lib/ai/adapter';
-import { prisma } from '@/lib/prisma';
-import { AppointmentStatus } from '@/lib/types';
+import { Role } from '@/lib/types';
+import { z } from 'zod';
+
+const PostVisitRequestSchema = z.object({
+  notes: z.string().min(5, 'Consultation notes required').max(2000, 'Notes max 2000 characters'),
+});
 
 export async function POST(req: Request) {
   try {
-    const { appointmentId, consultNotes } = await req.json();
-
-    if (!appointmentId || !consultNotes) {
-      return NextResponse.json({ error: 'appointmentId and consultNotes are required' }, { status: 400 });
+    // ROUTE CLASSIFICATION: DOCTOR_ONLY / ADMIN_ONLY
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
-    const summaryResult = await invokePostVisitLLM(consultNotes);
+    if (session.role !== Role.DOCTOR && session.role !== Role.ADMIN) {
+      return NextResponse.json({ error: 'Forbidden: Only clinical staff can generate post-visit summaries' }, { status: 403 });
+    }
 
-    // Save notes & post-visit summary to appointment record
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: {
-        consultNotes,
-        aiPostSummary: JSON.stringify(summaryResult),
-        status: AppointmentStatus.COMPLETED,
-      },
-    });
+    const body = await req.json();
+    const validated = PostVisitRequestSchema.parse(body);
 
-    return NextResponse.json({
-      message: 'Consultation completed and post-visit summary generated',
-      summary: summaryResult,
-      appointment: updatedAppointment,
-    });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to complete visit summary' }, { status: 500 });
+    const summary = await invokePostVisitLLM(validated.notes);
+    return NextResponse.json({ success: true, summary });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+    }
+    return NextResponse.json({ error: err.message || 'AI post-visit generation failed' }, { status: 500 });
   }
 }

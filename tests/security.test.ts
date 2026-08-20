@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/prisma';
 import { registerUser } from '../src/lib/auth/service';
 import { Role } from '../src/lib/types';
+import { POST as postVisitHandler } from '../src/app/api/ai/post-visit/route';
+import { POST as holdHandler } from '../src/app/api/appointments/hold/route';
+import { POST as calendarSyncHandler } from '../src/app/api/calendar/sync/route';
 
 test('Security Authorization: Registration hardcodes PATIENT role', async () => {
   const email = `security.user.${Date.now()}@example.com`;
@@ -40,4 +43,34 @@ test('Security Data Isolation: Patients cannot query other patient appointments'
   // Ensure patient1 results do not contain any appointments for patient2
   const hasPatient2Data = apptsPatient1.some((a) => a.patientId === patient2.id);
   assert.equal(hasPatient2Data, false, 'Patient 1 must not receive Patient 2 appointment records');
+});
+
+test('Security Route Classification: /api/ai/post-visit rejects unauthenticated requests', async () => {
+  const req = new Request('http://localhost:3000/api/ai/post-visit', {
+    method: 'POST',
+    body: JSON.stringify({ notes: 'Patient has acute sinusitis.' }),
+  });
+
+  const res = await postVisitHandler(req);
+  assert.equal(res.status, 401, 'Unauthenticated post-visit AI request must be rejected with 401 Unauthorized');
+});
+
+test('Security Route Classification: /api/appointments/hold rejects unauthenticated requests', async () => {
+  const req = new Request('http://localhost:3000/api/appointments/hold', {
+    method: 'POST',
+    body: JSON.stringify({ doctorId: 'doc-1', startTime: '2026-09-01T09:00:00Z', endTime: '2026-09-01T09:30:00Z' }),
+  });
+
+  const res = await holdHandler(req);
+  assert.equal(res.status, 401, 'Unauthenticated slot hold request must be rejected with 401 Unauthorized');
+});
+
+test('Security Route Classification: /api/calendar/sync rejects unauthorized calls', async () => {
+  const req = new Request('http://localhost:3000/api/calendar/sync', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'CALENDAR_CREATE_EVENT', payload: {} }),
+  });
+
+  const res = await calendarSyncHandler(req);
+  assert.equal(res.status, 403, 'Unauthorized calendar sync request without worker key or admin session must return 403 Forbidden');
 });

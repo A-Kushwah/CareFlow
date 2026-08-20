@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
-import { processMedicationReminders } from '@/lib/reminders/service';
+import { getSession } from '@/lib/auth/session';
+import { processDueReminders } from '@/lib/reminders/service';
+import { Role } from '@/lib/types';
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const result = await processMedicationReminders();
-    return NextResponse.json({ message: 'Medication reminder job run completed', result });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Reminder processing failed' }, { status: 500 });
+    // ROUTE CLASSIFICATION: ADMIN_ONLY / INTERNAL_WORKER
+    const session = await getSession();
+    const authHeader = req.headers.get('Authorization');
+    const cronSecret = process.env.CRON_SECRET || 'carepulse-secret-worker-key';
+
+    const isWorkerAuthorized = authHeader === `Bearer ${cronSecret}`;
+    const isAdminAuthorized = session && session.role === Role.ADMIN;
+
+    if (!isWorkerAuthorized && !isAdminAuthorized) {
+      return NextResponse.json({ error: 'Forbidden: Internal worker key or Admin session required' }, { status: 403 });
+    }
+
+    const result = await processDueReminders();
+    return NextResponse.json({ success: true, result });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Reminder processing failed' }, { status: 500 });
   }
 }

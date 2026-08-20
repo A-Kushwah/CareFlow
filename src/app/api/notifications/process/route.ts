@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
 import { processOutboxNotifications } from '@/lib/notifications/processor';
+import { Role } from '@/lib/types';
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const summary = await processOutboxNotifications(20);
-    return NextResponse.json({
-      message: 'Outbox processing run completed',
-      summary,
-    });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Outbox processing failed' }, { status: 500 });
+    // ROUTE CLASSIFICATION: ADMIN_ONLY / INTERNAL_WORKER
+    const session = await getSession();
+    const authHeader = req.headers.get('Authorization');
+    const cronSecret = process.env.CRON_SECRET || 'carepulse-secret-worker-key';
+
+    const isWorkerAuthorized = authHeader === `Bearer ${cronSecret}`;
+    const isAdminAuthorized = session && session.role === Role.ADMIN;
+
+    if (!isWorkerAuthorized && !isAdminAuthorized) {
+      return NextResponse.json({ error: 'Forbidden: Internal worker key or Admin session required' }, { status: 403 });
+    }
+
+    const result = await processOutboxNotifications();
+    return NextResponse.json({ success: true, result });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Outbox processing failed' }, { status: 500 });
   }
 }
