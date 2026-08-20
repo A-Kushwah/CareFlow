@@ -1,41 +1,44 @@
 import { NextResponse } from 'next/server';
 import { registerUser } from '@/lib/auth/service';
-import { createSessionToken } from '@/lib/auth/session';
+import { createSession } from '@/lib/auth/session';
 import { Role } from '@/lib/types';
+import { z } from 'zod';
+
+const RegisterSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, role } = await req.json();
+    const body = await req.json();
+    const validated = RegisterSchema.parse(body);
 
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: 'Email, password, and name are required' }, { status: 400 });
-    }
+    // SECURITY ENFORCEMENT: Server hardcodes Role.PATIENT for public self-registration.
+    // Client-supplied role parameters are strictly ignored to prevent privilege escalation.
+    const user = await registerUser(
+      validated.email,
+      validated.password,
+      validated.name,
+      Role.PATIENT
+    );
 
-    const assignedRole = role && Object.values(Role).includes(role) ? role : Role.PATIENT;
-    const user = await registerUser(email, password, name, assignedRole);
-
-    const token = createSessionToken({
+    await createSession({
       userId: user.id,
       email: user.email,
-      name: user.name,
       role: user.role,
+      name: user.name,
     });
 
-    const response = NextResponse.json({
-      message: 'Registration successful',
-      user,
-    }, { status: 201 });
-
-    response.cookies.set('carepulse_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+    return NextResponse.json({
+      success: true,
+      user: { id: user.id, email: user.email, role: user.role, name: user.name },
     });
-
-    return response;
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Registration failed' }, { status: 400 });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+    }
+    return NextResponse.json({ error: err.message || 'Registration failed' }, { status: 400 });
   }
 }
