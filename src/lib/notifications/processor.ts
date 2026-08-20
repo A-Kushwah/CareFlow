@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { NotificationChannel, NotificationStatus } from '../types';
 import { sendEmailNotification } from './emailAdapter';
@@ -12,9 +13,10 @@ export function calculateExponentialBackoff(attempt: number): Date {
 }
 
 export async function processOutboxNotifications(limit: number = 20) {
-  // 1. Fetch pending queued or failed notification jobs ready for retry
   const now = new Date();
-  const jobs = await prisma.notificationLog.findMany({
+  
+  // 1. Fetch pending queued or failed notification jobs ready for retry
+  const pendingJobs = await prisma.notificationLog.findMany({
     where: {
       status: { in: [NotificationStatus.QUEUED, NotificationStatus.FAILED] },
       nextRetryAt: { lte: now },
@@ -23,7 +25,7 @@ export async function processOutboxNotifications(limit: number = 20) {
     orderBy: { createdAt: 'asc' },
   });
 
-  if (jobs.length === 0) {
+  if (pendingJobs.length === 0) {
     return { processedCount: 0, successes: 0, failures: 0, dlqCount: 0 };
   }
 
@@ -31,13 +33,27 @@ export async function processOutboxNotifications(limit: number = 20) {
   let failures = 0;
   let dlqCount = 0;
 
-  for (const job of jobs) {
-    // Atomically mark job as PROCESSING
-    await prisma.notificationLog.update({
-      where: { id: job.id },
-      data: { status: NotificationStatus.PROCESSING },
+  for (const candidate of pendingJobs) {
+    // ATOMIC CLAIM STEP: Unique claim token ensures only 1 worker instance can process this row
+    const claimToken = crypto.randomUUID();
+    const claimResult = await prisma.notificationLog.updateMany({
+      where: {
+        id: candidate.id,
+        status: { in: [NotificationStatus.QUEUED, NotificationStatus.FAILED] },
+      },
+      data: {
+        status: NotificationStatus.PROCESSING,
+        claimToken,
+        claimedAt: new Date(),
+      },
     });
 
+    // If another worker claimed this job in parallel, skip execution
+    if (claimResult.count === 0) {
+      continue;
+    }
+
+    const job = candidate;
     let result: { success: boolean; error?: string } = { success: false };
 
     try {
@@ -100,7 +116,7 @@ export async function processOutboxNotifications(limit: number = 20) {
   }
 
   return {
-    processedCount: jobs.length,
+    processedCount: successes + failures + dlqCount,
     successes,
     failures,
     dlqCount,

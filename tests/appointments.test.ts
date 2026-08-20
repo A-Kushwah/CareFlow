@@ -24,6 +24,11 @@ test('1. Double-Booking Concurrency Prevention', async () => {
   startTime.setHours(11, 0, 0, 0);
   const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
 
+  // Ensure slot is clean before concurrent test
+  await prisma.appointment.deleteMany({
+    where: { doctorId: doctor.id, startTime, endTime },
+  });
+
   // Run simultaneous booking attempts
   const results = await Promise.allSettled([
     confirmAppointmentTransaction(patient1.id, doctor.id, startTime.toISOString(), endTime.toISOString(), 'Headache'),

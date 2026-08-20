@@ -7,6 +7,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// PostgreSQL Migration Note:
+// For PostgreSQL production deployments, double-booking prevention can be further enforced 
+// at the database engine layer using an EXCLUDE constraint:
+// ALTER TABLE "Appointment" ADD CONSTRAINT "no_overlapping_appointments" 
+// EXCLUDE USING gist ("doctorId" WITH =, tsrange("startTime", "endTime") WITH &&) 
+// WHERE (status IN ('CONFIRMED', 'HELD'));
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -102,18 +109,22 @@ model MedicationReminder {
 }
 
 model NotificationLog {
-  id          String   @id @default(uuid())
-  recipient   String
-  channel     String   @default("EMAIL") // "EMAIL", "SMS", "CALENDAR"
-  template    String
-  payload     String   // JSON string payload
-  attempts    Int      @default(0)
-  maxAttempts Int      @default(5)
-  nextRetryAt DateTime @default(now())
-  status      String   @default("QUEUED") // "QUEUED", "PROCESSING", "SENT", "FAILED", "DLQ"
-  lastError   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String    @id @default(uuid())
+  idempotencyKey String?   @unique
+  recipient      String
+  channel        String    @default("EMAIL") // "EMAIL", "SMS", "CALENDAR"
+  template       String
+  payload        String    // JSON string payload
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  nextRetryAt    DateTime  @default(now())
+  status         String    @default("QUEUED") // "QUEUED", "PROCESSING", "SENT", "FAILED", "DLQ"
+  claimToken     String?
+  claimedAt      DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([status, nextRetryAt])
+  @@index([claimToken])
 }

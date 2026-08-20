@@ -135,7 +135,7 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 6. Transactionally enqueue Email Notification Outbox record
+    // 6. Transactionally enqueue Email Notification with Idempotency Key
     const emailPayload = JSON.stringify({
       appointmentId: appointment.id,
       patientName: patient.name,
@@ -147,6 +147,7 @@ export async function confirmAppointmentTransaction(
 
     await tx.notificationLog.create({
       data: {
+        idempotencyKey: `appt_email_confirmed_${appointment.id}`,
         recipient: patient.email,
         channel: NotificationChannel.EMAIL,
         template: 'APPOINTMENT_CONFIRMED',
@@ -157,7 +158,7 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 7. Transactionally enqueue Google Calendar Sync Outbox record
+    // 7. Transactionally enqueue Google Calendar Sync Outbox with Idempotency Key
     const calendarPayload = JSON.stringify({
       appointmentId: appointment.id,
       patientName: patient.name,
@@ -171,6 +172,7 @@ export async function confirmAppointmentTransaction(
 
     await tx.notificationLog.create({
       data: {
+        idempotencyKey: `appt_calendar_create_${appointment.id}`,
         recipient: doctor.user.email,
         channel: NotificationChannel.CALENDAR,
         template: 'CALENDAR_CREATE_EVENT',

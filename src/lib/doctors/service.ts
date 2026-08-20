@@ -126,6 +126,7 @@ export async function applyDoctorLeave(
 
     const notif = await prisma.notificationLog.create({
       data: {
+        idempotencyKey: `leave_cancel_${appt.id}_${leave.id}`,
         recipient: appt.patient.email,
         channel: NotificationChannel.EMAIL,
         template: 'APPOINTMENT_CANCELLED_LEAVE',
