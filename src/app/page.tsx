@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Navbar from '@/components/Navbar';
 import DoctorDirectory from '@/components/DoctorDirectory';
 import SymptomTriageWizard from '@/components/SymptomTriageWizard';
 import DoctorPortal from '@/components/DoctorPortal';
@@ -26,7 +27,10 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Top Header Navbar with Active Portal Switcher */}
+      <Navbar activeTab={activeTab} onSelectTab={setActiveTab} />
+
       {/* Success Notification Banner */}
       {bookingSuccessMsg && (
         <div className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-sm font-semibold shadow-lg animate-bounce">
@@ -34,7 +38,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Main Tab Navigation */}
+      {/* Main Tab Switcher Pills */}
       <div className="glass-panel p-2 flex items-center justify-center gap-2 max-w-xl mx-auto">
         <button
           onClick={() => setActiveTab('patient')}
@@ -70,7 +74,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* View Switcher */}
+      {/* Dynamic Portal View */}
       {activeTab === 'patient' && (
         <DoctorDirectory onSelectSlot={handleSelectSlot} />
       )}
