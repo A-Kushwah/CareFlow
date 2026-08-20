@@ -1,0 +1,148 @@
+import { prisma } from '../prisma';
+import { AppointmentStatus, LeaveStatus, NotificationChannel, NotificationStatus } from '../types';
+
+export async function getDoctorCatalog() {
+  const doctors = await prisma.doctorProfile.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      workingHours: true,
+      leaves: {
+        where: {
+          endDate: { gte: new Date() },
+          status: LeaveStatus.APPROVED,
+        },
+      },
+    },
+  });
+
+  return doctors.map((doc) => ({
+    id: doc.id,
+    userId: doc.userId,
+    name: doc.user.name,
+    email: doc.user.email,
+    specialty: doc.specialty,
+    consultFee: doc.consultFee,
+    slotDurationMin: doc.slotDurationMin,
+    bufferTimeMin: doc.bufferTimeMin,
+    workingHours: doc.workingHours,
+    activeLeaves: doc.leaves,
+  }));
+}
+
+export async function getDoctorById(doctorId: string) {
+  const doctor = await prisma.doctorProfile.findUnique({
+    where: { id: doctorId },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      workingHours: true,
+      leaves: true,
+    },
+  });
+
+  if (!doctor) return null;
+
+  return {
+    id: doctor.id,
+    userId: doctor.userId,
+    name: doctor.user.name,
+    email: doctor.user.email,
+    specialty: doctor.specialty,
+    consultFee: doctor.consultFee,
+    slotDurationMin: doctor.slotDurationMin,
+    bufferTimeMin: doctor.bufferTimeMin,
+    workingHours: doctor.workingHours,
+    leaves: doctor.leaves,
+  };
+}
+
+export async function applyDoctorLeave(
+  doctorId: string,
+  startDateISO: string,
+  endDateISO: string,
+  reason: string
+) {
+  const startDate = new Date(startDateISO);
+  const endDate = new Date(endDateISO);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw new Error('Invalid leave start or end date');
+  }
+
+  if (startDate >= endDate) {
+    throw new Error('Leave start date must be before end date');
+  }
+
+  // 1. Create Doctor Leave record
+  const leave = await prisma.doctorLeave.create({
+    data: {
+      doctorId,
+      startDate,
+      endDate,
+      reason,
+      status: LeaveStatus.APPROVED,
+    },
+  });
+
+  // 2. Query all future CONFIRMED or HELD appointments for this doctor falling within the leave range
+  const conflictingAppointments = await prisma.appointment.findMany({
+    where: {
+      doctorId,
+      status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.HELD] },
+      startTime: { lte: endDate },
+      endTime: { gte: startDate },
+    },
+    include: {
+      patient: true,
+      doctor: { include: { user: true } },
+    },
+  });
+
+  const cancelledAppointmentIds: string[] = [];
+  const queuedNotifications: any[] = [];
+
+  for (const appt of conflictingAppointments) {
+    // Cancel appointment
+    await prisma.appointment.update({
+      where: { id: appt.id },
+      data: { status: AppointmentStatus.CANCELLED },
+    });
+    cancelledAppointmentIds.push(appt.id);
+
+    // Write Outbox notification to Patient
+    const payload = JSON.stringify({
+      appointmentId: appt.id,
+      patientName: appt.patient.name,
+      patientEmail: appt.patient.email,
+      doctorName: appt.doctor.user.name,
+      startTime: appt.startTime.toISOString(),
+      reason: `Doctor is on leave: ${reason}`,
+    });
+
+    const notif = await prisma.notificationLog.create({
+      data: {
+        recipient: appt.patient.email,
+        channel: NotificationChannel.EMAIL,
+        template: 'APPOINTMENT_CANCELLED_LEAVE',
+        payload,
+        status: NotificationStatus.QUEUED,
+        attempts: 0,
+        nextRetryAt: new Date(),
+      },
+    });
+
+    queuedNotifications.push(notif.id);
+  }
+
+  return {
+    leave,
+    conflictingCount: conflictingAppointments.length,
+    cancelledAppointmentIds,
+    queuedNotificationCount: queuedNotifications.length,
+  };
+}
