@@ -14,6 +14,7 @@ const ApplyLeaveSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // ROUTE CLASSIFICATION: DOCTOR_ONLY / ADMIN_ONLY
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
@@ -52,16 +53,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid start or end date range' }, { status: 400 });
     }
 
-    const result = await applyDoctorLeave(targetDoctorId, start, end, validated.reason);
+    const result = await applyDoctorLeave(targetDoctorId, validated.startDate, validated.endDate, validated.reason);
 
     return NextResponse.json({
       success: true,
       leave: result.leave,
-      cancelledAppointmentsCount: result.cancelledAppointmentsCount,
+      cancelledAppointmentsCount: result.conflictingCount || 0,
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'Failed to submit leave' }, { status: 400 });
   }

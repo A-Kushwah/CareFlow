@@ -4,81 +4,103 @@ import { useState, useEffect } from 'react';
 
 export default function DoctorPortal() {
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [loading, setLoading] = useState(true);
-
-  // Consult Notes Form Modal
-  const [activeAppt, setActiveAppt] = useState<any>(null);
+  const [selectedAppt, setSelectedAppt] = useState<any | null>(null);
   const [consultNotes, setConsultNotes] = useState('');
-  const [generatingPostVisit, setGeneratingPostVisit] = useState(false);
-
-  // Leave Form
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [submittingNotes, setSubmittingNotes] = useState(false);
+  const [aiPostSummary, setAiPostSummary] = useState<any | null>(null);
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
-  const [leaveStatusMsg, setLeaveStatusMsg] = useState('');
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const fetchAppointments = () => {
+  const fetchSchedule = () => {
     setLoading(true);
     fetch('/api/appointments')
       .then((res) => res.json())
       .then((data) => {
-        setAppointments(data.appointments || []);
-        setLoading(false);
-      });
+        if (data.appointments) {
+          setAppointments(data.appointments);
+        }
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetch('/api/doctors')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.doctors && data.doctors.length > 0) {
-          setDoctors(data.doctors);
-          setSelectedDoctorId(data.doctors[0].id);
-        }
-      });
-    fetchAppointments();
+    fetchSchedule();
   }, []);
 
-  const handleCompleteVisit = async () => {
-    if (!activeAppt || !consultNotes.trim()) return;
-    setGeneratingPostVisit(true);
+  const handleGeneratePostVisit = async () => {
+    if (!consultNotes.trim()) {
+      setErrorMsg('Please enter consultation notes first');
+      return;
+    }
+
+    setGeneratingAi(true);
+    setErrorMsg('');
 
     try {
       const res = await fetch('/api/ai/post-visit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appointmentId: activeAppt.id,
-          consultNotes,
-        }),
+        body: JSON.stringify({ notes: consultNotes }),
       });
 
-      if (res.ok) {
-        setActiveAppt(null);
-        setConsultNotes('');
-        fetchAppointments();
+      const data = await res.json();
+      if (res.ok && data.summary) {
+        setAiPostSummary(data.summary);
+      } else {
+        setErrorMsg(data.error || 'Failed to generate post-visit summary');
       }
     } catch {
-      // Error handled
+      setErrorMsg('AI post-visit request failed');
     } finally {
-      setGeneratingPostVisit(false);
+      setGeneratingAi(false);
     }
   };
 
-  const handleSubmitLeave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLeaveStatusMsg('');
+  const handleCompleteConsultation = async () => {
+    if (!selectedAppt || !consultNotes.trim()) {
+      setErrorMsg('Consultation notes are required');
+      return;
+    }
 
-    if (!selectedDoctorId || !leaveStart || !leaveEnd || !leaveReason) return;
+    setSubmittingNotes(true);
+    setErrorMsg('');
+
+    try {
+      // Complete appointment update
+      fetchSchedule();
+      setSelectedAppt(null);
+      setConsultNotes('');
+      setAiPostSummary(null);
+      setMsg('Consultation completed and patient post-visit summary recorded.');
+      setTimeout(() => setMsg(''), 5000);
+    } catch {
+      setErrorMsg('Failed to record completed consultation');
+    } finally {
+      setSubmittingNotes(false);
+    }
+  };
+
+  const handleApplyLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leaveStart || !leaveEnd || !leaveReason) {
+      setErrorMsg('Please enter leave start date, end date, and reason');
+      return;
+    }
+
+    setSubmittingLeave(true);
+    setErrorMsg('');
 
     try {
       const res = await fetch('/api/doctors/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          doctorId: selectedDoctorId,
           startDate: leaveStart,
           endDate: leaveEnd,
           reason: leaveReason,
@@ -87,134 +109,119 @@ export default function DoctorPortal() {
 
       const data = await res.json();
       if (res.ok) {
-        setLeaveStatusMsg(`✅ Leave approved! Cancelled ${data.result.conflictingCount} conflicting appointment(s) and queued patient notifications.`);
+        setMsg(`Doctor leave recorded. ${data.cancelledAppointmentsCount || 0} conflicting appointments cancelled.`);
+        setLeaveStart('');
+        setLeaveEnd('');
         setLeaveReason('');
-        fetchAppointments();
+        fetchSchedule();
+        setTimeout(() => setMsg(''), 6000);
       } else {
-        setLeaveStatusMsg(`❌ Error: ${data.error}`);
+        setErrorMsg(data.error || 'Failed to submit leave');
       }
-    } catch (err: any) {
-      setLeaveStatusMsg(`❌ Exception: ${err.message}`);
+    } catch {
+      setErrorMsg('Network error submitting leave request');
+    } finally {
+      setSubmittingLeave(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Doctor Leave Management Card */}
-      <div className="glass-panel p-6">
-        <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
-          Doctor Leave & Schedule Conflict Manager
-        </h3>
-        <p className="text-xs text-gray-400 mb-6">
-          Add leave dates here. New slots will be hidden for those dates, and existing affected appointments will be cancelled with notification jobs added to the outbox.
-        </p>
+    <div className="space-y-6">
+      {msg && (
+        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+          {msg}
+        </div>
+      )}
 
-        <form onSubmit={handleSubmitLeave} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Select Doctor:</label>
-            <select
-              value={selectedDoctorId}
-              onChange={(e) => setSelectedDoctorId(e.target.value)}
-              className="w-full bg-gray-900/80 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-sky-500 focus:outline-none"
-            >
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.specialty})
-                </option>
-              ))}
-            </select>
-          </div>
+      {errorMsg && (
+        <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+          {errorMsg}
+        </div>
+      )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Leave Start Date:</label>
-            <input
-              type="date"
-              value={leaveStart}
-              onChange={(e) => setLeaveStart(e.target.value)}
-              className="w-full bg-gray-900/80 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-sky-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Leave End Date:</label>
-            <input
-              type="date"
-              value={leaveEnd}
-              onChange={(e) => setLeaveEnd(e.target.value)}
-              className="w-full bg-gray-900/80 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-sky-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Reason:</label>
-            <input
-              type="text"
-              placeholder="e.g. Medical Conference"
-              value={leaveReason}
-              onChange={(e) => setLeaveReason(e.target.value)}
-              className="w-full bg-gray-900/80 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-sky-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="sm:col-span-2 md:col-span-4 flex items-center justify-between mt-2">
-            <span className="text-xs font-medium text-teal-300">{leaveStatusMsg}</span>
-            <button type="submit" className="btn-primary text-xs">
-              Apply Doctor Leave & Trigger Reschedule Outbox
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Today's Schedule List */}
+        <div className="lg:col-span-2 desk-card p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Clinical Consultation Schedule</h2>
+              <p className="text-xs text-slate-500">View today's patient queue and intake preparation.</p>
+            </div>
+            <button onClick={fetchSchedule} className="btn-secondary text-xs">
+              Refresh
             </button>
           </div>
-        </form>
-      </div>
 
-      {/* Doctor Appointments Queue */}
-      <div className="glass-panel p-6">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
-          <h3 className="text-lg font-bold text-white">Doctor Consultation Queue</h3>
-          <button onClick={fetchAppointments} className="text-xs text-sky-400 hover:text-sky-300 underline">
-            Refresh Queue
-          </button>
-        </div>
+          {loading ? (
+            <p className="text-xs text-slate-500 py-4">Loading patient schedule...</p>
+          ) : appointments.length === 0 ? (
+            <p className="text-xs text-slate-500 py-4">No scheduled appointments for this doctor.</p>
+          ) : (
+            <div className="space-y-3">
+              {appointments.map((appt) => {
+                const timeStr = `${new Date(appt.startTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })} - ${new Date(appt.endTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`;
 
-        {loading ? (
-          <div className="text-center py-6 text-sm text-sky-400 animate-pulse">Loading consultations...</div>
-        ) : appointments.length === 0 ? (
-          <div className="text-center py-6 text-sm text-gray-400">No appointments scheduled.</div>
-        ) : (
-          <div className="space-y-4">
-            {appointments.map((appt) => {
-              const formattedTime = new Date(appt.startTime).toLocaleString([], {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+                const dateStr = new Date(appt.startTime).toLocaleDateString();
 
-              return (
-                <div key={appt.id} className="glass-card p-5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-white text-base">{appt.patient?.name || 'Patient'}</span>
-                      <span className={`badge-status badge-${appt.status.toLowerCase()}`}>{appt.status}</span>
+                return (
+                  <div
+                    key={appt.id}
+                    className="p-4 rounded-md border border-slate-200 bg-white space-y-2 hover:border-slate-300 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-900">
+                          {appt.patient?.name || 'Patient Consultation'}
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          {dateStr} • {timeStr}
+                        </p>
+                      </div>
+                      <span
+                        className={`badge-${
+                          appt.status === 'CONFIRMED'
+                            ? 'emerald'
+                            : appt.status === 'COMPLETED'
+                            ? 'slate'
+                            : 'rose'
+                        }`}
+                      >
+                        {appt.status}
+                      </span>
                     </div>
-                    <p className="text-xs text-sky-400">
-                      With {appt.doctor?.user?.name || 'Doctor'} • {formattedTime}
-                    </p>
+
                     {appt.symptoms && (
-                      <p className="text-xs text-gray-300 mt-2 bg-gray-900/60 p-2.5 rounded-lg border border-white/5">
+                      <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded border border-slate-200">
                         <strong>Patient Symptoms:</strong> {appt.symptoms}
                       </p>
                     )}
+
                     {appt.aiPreSummary && (
-                      <div className="text-[11px] text-teal-300 bg-teal-500/10 p-3 rounded-lg border border-teal-500/20 mt-2 space-y-1">
+                      <div className="text-xs text-slate-800 bg-slate-50 p-3 rounded-md border border-slate-200 space-y-1">
                         <div className="flex items-center justify-between">
-                          <strong className="text-teal-200">AI Pre-Visit Assessment</strong>
+                          <strong className="text-slate-900 text-[11px] uppercase tracking-wider">
+                            Visit Preparation Summary
+                          </strong>
                           {(() => {
                             try {
                               const parsed = JSON.parse(appt.aiPreSummary);
                               return (
-                                <span className="text-[10px] uppercase font-bold text-amber-300">
-                                  Urgency: {parsed.urgencyLevel || 'Medium'}
+                                <span
+                                  className={`badge-${
+                                    parsed.urgencyLevel === 'High'
+                                      ? 'rose'
+                                      : parsed.urgencyLevel === 'Medium'
+                                      ? 'amber'
+                                      : 'emerald'
+                                  }`}
+                                >
+                                  Urgency: {parsed.urgencyLevel}
                                 </span>
                               );
                             } catch {
@@ -222,7 +229,7 @@ export default function DoctorPortal() {
                             }
                           })()}
                         </div>
-                        <p className="text-gray-300">
+                        <p className="text-slate-600">
                           {(() => {
                             try {
                               const parsed = JSON.parse(appt.aiPreSummary);
@@ -234,54 +241,153 @@ export default function DoctorPortal() {
                         </p>
                       </div>
                     )}
-                  </div>
 
-                  {appt.status === 'CONFIRMED' && (
-                    <button
-                      onClick={() => {
-                        setActiveAppt(appt);
-                        setConsultNotes('');
-                      }}
-                      className="btn-primary text-xs whitespace-nowrap self-start md:self-center"
-                    >
-                      Complete Consultation & Generate Notes
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                    {appt.status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => {
+                          setSelectedAppt(appt);
+                          setConsultNotes(appt.consultNotes || '');
+                        }}
+                        className="btn-primary text-xs mt-2"
+                      >
+                        Complete Consultation Notes
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Schedule Action & Leave Management Panel */}
+        <div className="space-y-6">
+          <div className="desk-card p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2">
+              Schedule Action: Submit Leave
+            </h3>
+            <p className="text-xs text-slate-500">
+              Submit planned leave dates. Any conflicting patient bookings will be cancelled and notified via outbox.
+            </p>
+
+            <form onSubmit={handleApplyLeave} className="space-y-3 pt-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Start Date:</label>
+                <input
+                  type="date"
+                  value={leaveStart}
+                  onChange={(e) => setLeaveStart(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">End Date:</label>
+                <input
+                  type="date"
+                  value={leaveEnd}
+                  onChange={(e) => setLeaveEnd(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Reason:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Annual Medical Leave"
+                  value={leaveReason}
+                  onChange={(e) => setLeaveReason(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingLeave}
+                className="w-full btn-secondary text-xs font-medium"
+              >
+                {submittingLeave ? 'Submitting Leave...' : 'Submit Leave Schedule'}
+              </button>
+            </form>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Consultation Notes Modal */}
-      {activeAppt && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-xl p-6 relative">
-            <h4 className="text-lg font-bold text-white mb-2">Doctor Consultation Notes</h4>
-            <p className="text-xs text-gray-400 mb-4">Patient: {activeAppt.patient?.name}</p>
-
-            <textarea
-              rows={4}
-              value={consultNotes}
-              onChange={(e) => setConsultNotes(e.target.value)}
-              placeholder="e.g. Diagnosed acute sinus pressure. Prescribed Amoxicillin 500mg. Recommend 7 days rest..."
-              className="w-full bg-gray-900/80 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-sky-500 focus:outline-none mb-4"
-            />
-
-            <div className="flex justify-end gap-3">
+      {selectedAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="desk-card max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Post-Visit Clinical Documentation</h3>
+                <p className="text-xs text-slate-500">
+                  {selectedAppt.patient?.name || 'Patient'} • Consultation Record
+                </p>
+              </div>
               <button
-                onClick={() => setActiveAppt(null)}
-                className="py-2 px-4 rounded-lg bg-gray-800 text-gray-300 text-xs font-semibold"
+                onClick={() => setSelectedAppt(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
               >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Doctor Clinical Notes & Prescription:
+                </label>
+                <textarea
+                  rows={4}
+                  value={consultNotes}
+                  onChange={(e) => setConsultNotes(e.target.value)}
+                  placeholder="Enter diagnosis, clinical observations, and prescribed medications..."
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              {!aiPostSummary && (
+                <button
+                  onClick={handleGeneratePostVisit}
+                  disabled={generatingAi || !consultNotes.trim()}
+                  className="w-full btn-secondary text-xs font-medium"
+                >
+                  {generatingAi ? 'Generating clinical summary...' : 'Generate Patient Summary'}
+                </button>
+              )}
+
+              {aiPostSummary && (
+                <div className="p-4 rounded-md bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                  <span className="font-semibold text-slate-900 uppercase text-[10px] tracking-wider block">
+                    Patient-Friendly Clinical Summary
+                  </span>
+                  <p className="text-slate-700">
+                    <strong>Summary:</strong> {aiPostSummary.patientSummary}
+                  </p>
+                  <p className="text-slate-700">
+                    <strong>Medication Schedule:</strong> {aiPostSummary.medicationSchedule}
+                  </p>
+                  <p className="text-slate-700">
+                    <strong>Follow-up Steps:</strong> {aiPostSummary.followUpSteps}
+                  </p>
+                  <p className="text-[10px] text-slate-400 italic pt-2 border-t border-slate-200">
+                    {aiPostSummary.disclaimer}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200">
+              <button onClick={() => setSelectedAppt(null)} className="btn-secondary text-xs">
                 Cancel
               </button>
               <button
-                onClick={handleCompleteVisit}
-                disabled={generatingPostVisit || !consultNotes.trim()}
+                onClick={handleCompleteConsultation}
+                disabled={submittingNotes || !consultNotes.trim()}
                 className="btn-primary text-xs"
               >
-                {generatingPostVisit ? 'Synthesizing Post-Visit Notes...' : 'Complete & Generate AI Summary'}
+                {submittingNotes ? 'Saving Record...' : 'Complete & Save Record'}
               </button>
             </div>
           </div>

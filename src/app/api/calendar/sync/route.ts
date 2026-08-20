@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: result.success, result });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'Calendar sync failed' }, { status: 500 });
   }

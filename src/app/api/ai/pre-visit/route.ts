@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, summary });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'AI pre-visit generation failed' }, { status: 500 });
   }

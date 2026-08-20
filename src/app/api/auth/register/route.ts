@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { registerUser } from '@/lib/auth/service';
-import { createSession } from '@/lib/auth/session';
+import { createSessionToken } from '@/lib/auth/session';
 import { Role } from '@/lib/types';
 import { z } from 'zod';
 
@@ -24,20 +24,30 @@ export async function POST(req: Request) {
       Role.PATIENT
     );
 
-    await createSession({
+    const token = createSessionToken({
       userId: user.id,
       email: user.email,
       role: user.role,
       name: user.name,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: { id: user.id, email: user.email, role: user.role, name: user.name },
     });
+
+    response.cookies.set({
+      name: 'carepulse_session',
+      value: token,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return response;
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'Registration failed' }, { status: 400 });
   }

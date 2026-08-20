@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import { processDueReminders } from '@/lib/reminders/service';
+import { processMedicationReminders } from '@/lib/reminders/service';
 import { Role } from '@/lib/types';
 
 export async function POST(req: Request) {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden: Internal worker key or Admin session required' }, { status: 403 });
     }
 
-    const result = await processDueReminders();
+    const result = await processMedicationReminders();
     return NextResponse.json({ success: true, result });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Reminder processing failed' }, { status: 500 });

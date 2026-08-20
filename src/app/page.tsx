@@ -22,55 +22,55 @@ export default function HomePage() {
   const handleBookingConfirmed = () => {
     setSelectedDoctor(null);
     setSelectedSlot(null);
-    setBookingSuccessMsg('Appointment confirmed. Email and calendar updates have been queued.');
+    setBookingSuccessMsg('Appointment confirmed successfully. Transactional outbox notifications and calendar sync events queued.');
     setTimeout(() => setBookingSuccessMsg(''), 8000);
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Header Navbar with Active Portal Switcher */}
+      {/* Top Header Navbar */}
       <Navbar activeTab={activeTab} onSelectTab={setActiveTab} />
 
-      {/* Success Notification Banner */}
+      {/* Confirmation Notification Banner */}
       {bookingSuccessMsg && (
-        <div className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-sm font-semibold shadow-lg animate-bounce">
+        <div className="p-3.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-xs">
           {bookingSuccessMsg}
         </div>
       )}
 
-      {/* Main Tab Switcher Pills */}
-      <div className="glass-panel p-2 flex items-center justify-center gap-2 max-w-xl mx-auto">
+      {/* Primary Tab Switcher */}
+      <div className="desk-card p-1.5 flex items-center justify-center gap-1.5 max-w-xl mx-auto">
         <button
           onClick={() => setActiveTab('patient')}
-          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-colors ${
             activeTab === 'patient'
-              ? 'bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          🩺 Patient Portal & Booking
+          Patient Booking
         </button>
 
         <button
           onClick={() => setActiveTab('doctor')}
-          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-colors ${
             activeTab === 'doctor'
-              ? 'bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          👨‍⚕️ Doctor Portal & Leave
+          Doctor Schedule
         </button>
 
         <button
           onClick={() => setActiveTab('admin')}
-          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-colors ${
             activeTab === 'admin'
-              ? 'bg-gradient-to-r from-sky-500 to-teal-500 text-white shadow-md'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          ⚙️ Admin Outbox Console
+          Operations & Outbox
         </button>
       </div>
 

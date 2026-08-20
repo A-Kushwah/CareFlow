@@ -3,123 +3,148 @@
 import { useState, useEffect } from 'react';
 import { AvailableSlot } from '@/lib/types';
 
-export default function DoctorDirectory({ onSelectSlot }: { onSelectSlot: (doctor: any, slot: AvailableSlot) => void }) {
+export default function DoctorDirectory({
+  onSelectSlot,
+}: {
+  onSelectSlot: (doctor: any, slot: AvailableSlot) => void;
+}) {
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
-  const [slotMessage, setSlotMessage] = useState<string>('');
-  const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/doctors')
       .then((res) => res.json())
       .then((data) => {
-        if (data.doctors && data.doctors.length > 0) {
+        if (data.doctors) {
           setDoctors(data.doctors);
-          setSelectedDoctorId(data.doctors[0].id);
+          if (data.doctors.length > 0) {
+            setSelectedDoctorId(data.doctors[0].id);
+          }
         }
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     if (!selectedDoctorId || !selectedDate) return;
+    setSlotsLoading(true);
 
-    setLoadingSlots(true);
-    setSlotMessage('');
     fetch(`/api/doctors/slots?doctorId=${selectedDoctorId}&date=${selectedDate}`)
       .then((res) => res.json())
       .then((data) => {
-        setSlots(data.slots || []);
-        setSlotMessage(data.message || '');
-        setLoadingSlots(false);
+        if (data.slots) {
+          setSlots(data.slots);
+        }
       })
-      .catch(() => setLoadingSlots(false));
+      .finally(() => setSlotsLoading(false));
   }, [selectedDoctorId, selectedDate]);
 
-  const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId);
+  const specialties = ['ALL', ...Array.from(new Set(doctors.map((d) => d.specialty || d.specialization)))];
+
+  const filteredDoctors = selectedSpecialty === 'ALL'
+    ? doctors
+    : doctors.filter((d) => (d.specialty || d.specialization) === selectedSpecialty);
+
+  const currentDoctor = doctors.find((d) => d.id === selectedDoctorId);
 
   return (
-    <div className="glass-panel p-6 shadow-xl">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-sky-400 animate-pulse"></span>
-            Book Healthcare Appointment
-          </h2>
-          <p className="text-sm text-gray-400 mt-1">
-            Select a specialist doctor and date to view real-time conflict-free slots.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="desk-card p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Specialist Directory & Slot Selection</h2>
+            <p className="text-xs text-slate-500">Filter clinical specialists and check slot availability.</p>
+          </div>
 
-        <div className="flex items-center gap-3">
-          <label className="text-xs text-gray-400 font-semibold uppercase">Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-gray-900/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
-          />
-        </div>
-      </div>
-
-      {/* Doctor Cards Selector */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {doctors.map((doc) => {
-          const isSelected = doc.id === selectedDoctorId;
-          return (
-            <div
-              key={doc.id}
-              onClick={() => setSelectedDoctorId(doc.id)}
-              className={`glass-card p-5 rounded-xl cursor-pointer transition-all ${
-                isSelected ? 'border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/30' : 'hover:border-white/20'
-              }`}
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-medium text-slate-600">Specialization:</span>
+            <select
+              value={selectedSpecialty}
+              onChange={(e) => setSelectedSpecialty(e.target.value)}
+              className="text-xs bg-white border border-slate-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg text-white">{doc.name}</h3>
-                  <span className="inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                    {doc.specialty}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xl font-bold text-sky-400">${doc.consultFee}</span>
-                  <span className="block text-[11px] text-gray-400">per visit</span>
-                </div>
-              </div>
+              {specialties.map((spec) => (
+                <option key={spec} value={spec}>
+                  {spec === 'ALL' ? 'All Specialties' : spec}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-400 border-t border-white/5 pt-3">
-                <span>Slot Duration: {doc.slotDurationMin} mins</span>
-                <span>Buffer: {doc.bufferTimeMin} mins</span>
-              </div>
-            </div>
-          );
-        })}
+        {/* Doctor List Cards */}
+        {loading ? (
+          <p className="text-xs text-slate-500 py-4">Loading clinical specialists...</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredDoctors.map((doc) => {
+              const isSelected = doc.id === selectedDoctorId;
+              return (
+                <div
+                  key={doc.id}
+                  onClick={() => setSelectedDoctorId(doc.id)}
+                  className={`p-4 rounded-md border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-slate-900 bg-slate-50/80 shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">{doc.user?.name || doc.name}</h3>
+                      <p className="text-xs text-slate-600">{doc.specialty || doc.specialization}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      ${doc.consultFee}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-[11px] text-slate-500">
+                    Slot duration: {doc.slotDurationMin || 30} mins
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Available Slots Section */}
-      {selectedDoctor && (
-        <div className="mt-8">
-          <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-300 mb-4">
-            Available Slots for {selectedDoctor.name} ({selectedDate})
-          </h4>
+      {/* Availability Timeline Section */}
+      {currentDoctor && (
+        <div className="desk-card p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Available Slots for {currentDoctor.user?.name || currentDoctor.name}
+              </h3>
+              <p className="text-xs text-slate-500">Select a time slot to proceed to visit preparation.</p>
+            </div>
 
-          {loadingSlots ? (
-            <div className="py-8 text-center text-sky-400 animate-pulse text-sm">
-              Calculating conflict-free slots...
+            <div className="flex items-center space-x-2">
+              <label className="text-xs font-medium text-slate-600">Select Date:</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="text-xs bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
             </div>
-          ) : slotMessage ? (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-              ⚠️ {slotMessage}
-            </div>
+          </div>
+
+          {slotsLoading ? (
+            <p className="text-xs text-slate-500 py-4">Calculating slot availability...</p>
           ) : slots.length === 0 ? (
-            <div className="p-4 rounded-xl bg-gray-800/50 text-gray-400 text-sm text-center">
-              No available slots found for this date.
-            </div>
+            <p className="text-xs text-slate-500 py-4">No available slots on this date or doctor is on leave.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {slots.map((slot, index) => {
-                const timeLabel = new Date(slot.startTime).toLocaleTimeString([], {
+                const timeStr = new Date(slot.startTime).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                 });
@@ -128,16 +153,16 @@ export default function DoctorDirectory({ onSelectSlot }: { onSelectSlot: (docto
                   <button
                     key={index}
                     disabled={!slot.isAvailable}
-                    onClick={() => slot.isAvailable && onSelectSlot(selectedDoctor, slot)}
-                    className={`p-3 rounded-lg border text-xs font-semibold text-center transition-all ${
+                    onClick={() => onSelectSlot(currentDoctor, slot)}
+                    className={`py-2 px-3 rounded-md text-xs font-medium border text-center transition-all ${
                       slot.isAvailable
-                        ? 'border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500 hover:text-white hover:border-sky-400 shadow-md hover:shadow-sky-500/20'
-                        : 'border-white/5 bg-gray-900/50 text-gray-600 cursor-not-allowed'
+                        ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-900 hover:text-white hover:border-slate-900'
+                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed line-through'
                     }`}
                   >
-                    <div>{timeLabel}</div>
-                    {!slot.isAvailable && (
-                      <span className="block text-[9px] uppercase tracking-wider mt-1 text-rose-400">
+                    {timeStr}
+                    {!slot.isAvailable && slot.reason && (
+                      <span className="block text-[9px] no-underline font-normal text-slate-400 mt-0.5">
                         {slot.reason}
                       </span>
                     )}

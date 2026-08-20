@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import { createAppointmentFromHold } from '@/lib/booking/concurrency';
+import { confirmAppointmentTransaction } from '@/lib/booking/concurrency';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@/lib/types';
 import { z } from 'zod';
 
 const ConfirmAppointmentSchema = z.object({
-  holdId: z.string().min(1, 'Hold ID is required'),
+  holdId: z.string().optional(),
   patientId: z.string().min(1, 'Patient ID is required'),
+  doctorId: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
   symptoms: z.string().min(3, 'Symptoms must be at least 3 characters').max(2000, 'Symptoms max 2000 characters'),
   medicalHistory: z.string().optional(),
 });
@@ -29,7 +32,7 @@ export async function GET(req: Request) {
       const patientAppts = await prisma.appointment.findMany({
         where: { patientId: session.userId },
         include: {
-          doctor: { select: { id: true, name: true, specialization: true } },
+          doctor: { select: { id: true, specialty: true, consultFee: true } },
         },
         orderBy: { startTime: 'asc' },
       });
@@ -66,7 +69,7 @@ export async function GET(req: Request) {
         where: whereClause,
         include: {
           patient: { select: { id: true, name: true, email: true } },
-          doctor: { select: { id: true, name: true, specialization: true } },
+          doctor: { select: { id: true, specialty: true, consultFee: true } },
         },
         orderBy: { startTime: 'asc' },
       });
@@ -89,26 +92,39 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validated = ConfirmAppointmentSchema.parse(body);
 
-    // SECURITY ENFORCEMENT: Override patientId with authenticated session identity
-    if (session.role === Role.PATIENT && validated.patientId !== session.userId) {
-      return NextResponse.json({ error: 'Forbidden: Cannot book appointments for another user' }, { status: 403 });
+    const targetPatientId = session.role === Role.PATIENT ? session.userId : validated.patientId;
+
+    if (!validated.doctorId || !validated.startTime || !validated.endTime) {
+      // Look up hold details if holdId provided
+      if (validated.holdId) {
+        const hold = await prisma.slotHold.findUnique({ where: { id: validated.holdId } });
+        if (!hold) {
+          return NextResponse.json({ error: 'Hold no longer valid or expired' }, { status: 404 });
+        }
+        const appt = await confirmAppointmentTransaction(
+          targetPatientId,
+          hold.doctorId,
+          hold.startTime.toISOString(),
+          hold.endTime.toISOString(),
+          validated.symptoms
+        );
+        return NextResponse.json({ success: true, appointment: appt });
+      }
+      return NextResponse.json({ error: 'Missing appointment slot parameters' }, { status: 400 });
     }
 
-    const result = await createAppointmentFromHold(
-      validated.holdId,
-      session.role === Role.PATIENT ? session.userId : validated.patientId,
-      validated.symptoms,
-      validated.medicalHistory
+    const appt = await confirmAppointmentTransaction(
+      targetPatientId,
+      validated.doctorId,
+      validated.startTime,
+      validated.endTime,
+      validated.symptoms
     );
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 409 });
-    }
-
-    return NextResponse.json({ success: true, appointment: result.appointment });
+    return NextResponse.json({ success: true, appointment: appt });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'Failed to confirm appointment' }, { status: 400 });
   }

@@ -27,21 +27,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid start or end time range' }, { status: 400 });
     }
 
-    const result = await createSlotHold(
+    const hold = await createSlotHold(
       validated.doctorId,
       session.userId,
-      startTime,
-      endTime
+      startTime.toISOString(),
+      endTime.toISOString()
     );
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 409 });
-    }
-
-    return NextResponse.json({ success: true, hold: result.hold });
+    return NextResponse.json({ success: true, hold });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0]?.message || 'Validation error' }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
     return NextResponse.json({ error: err.message || 'Failed to hold slot' }, { status: 400 });
   }
