@@ -206,8 +206,32 @@ export default function DoctorPortal() {
                       </p>
                     )}
                     {appt.aiPreSummary && (
-                      <div className="text-[11px] text-teal-300 bg-teal-500/10 p-2 rounded border border-teal-500/20 mt-2">
-                        <strong>AI Pre-Visit Assessment:</strong> {appt.aiPreSummary}
+                      <div className="text-[11px] text-teal-300 bg-teal-500/10 p-3 rounded-lg border border-teal-500/20 mt-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <strong className="text-teal-200">AI Pre-Visit Assessment</strong>
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(appt.aiPreSummary);
+                              return (
+                                <span className="text-[10px] uppercase font-bold text-amber-300">
+                                  Urgency: {parsed.urgencyLevel || 'Medium'}
+                                </span>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
+                        </div>
+                        <p className="text-gray-300">
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(appt.aiPreSummary);
+                              return `Chief Complaint: ${parsed.chiefComplaint || parsed.summary}`;
+                            } catch {
+                              return appt.aiPreSummary;
+                            }
+                          })()}
+                        </p>
                       </div>
                     )}
                   </div>

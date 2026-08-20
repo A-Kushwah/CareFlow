@@ -223,10 +223,33 @@ export default function SymptomTriageWizard({
 
         {/* AI Pre-Visit Summary Card */}
         {aiSummary && (
-          <div className="p-4 mb-6 rounded-xl bg-teal-500/10 border border-teal-500/30 space-y-2 text-xs">
-            <div className="font-semibold text-teal-300 uppercase tracking-wide">AI Pre-Visit Assessment</div>
-            <p className="text-gray-200"><strong>Summary:</strong> {aiSummary.summary}</p>
-            <p className="text-teal-200"><strong>Suggested Focus:</strong> {aiSummary.suggestedFocus}</p>
+          <div className="p-4 mb-6 rounded-xl bg-teal-500/10 border border-teal-500/30 space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-teal-300 uppercase tracking-wide">AI Pre-Visit Assessment</span>
+              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase border ${
+                aiSummary.urgencyLevel === 'High'
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  : aiSummary.urgencyLevel === 'Medium'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+              }`}>
+                Urgency: {aiSummary.urgencyLevel}
+              </span>
+            </div>
+
+            <p className="text-gray-200"><strong>Chief Complaint:</strong> {aiSummary.chiefComplaint}</p>
+
+            {aiSummary.suggestedQuestions?.length > 0 && (
+              <div>
+                <strong className="text-teal-200 block mb-1">Suggested Clinical Questions for Doctor:</strong>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-300">
+                  {aiSummary.suggestedQuestions.map((q: string, i: number) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <p className="text-[10px] text-gray-400 italic mt-2 border-t border-teal-500/20 pt-2">
               {aiSummary.disclaimer}
             </p>

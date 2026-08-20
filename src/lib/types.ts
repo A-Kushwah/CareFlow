@@ -46,14 +46,17 @@ export interface SymptomSummaryRequest {
 }
 
 export interface SymptomSummaryResult {
+  urgencyLevel: 'Low' | 'Medium' | 'High';
+  chiefComplaint: string;
+  suggestedQuestions: string[];
   summary: string;
-  suggestedFocus: string;
   disclaimer: string;
 }
 
 export interface PostVisitSummaryResult {
-  consultationSummary: string;
-  patientInstructions: string;
+  patientSummary: string;
+  medicationSchedule: string;
+  followUpSteps: string;
   prescribedMedications: string[];
   disclaimer: string;
 }
