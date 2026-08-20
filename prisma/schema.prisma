@@ -1,0 +1,119 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("PATIENT") // "ADMIN", "DOCTOR", "PATIENT"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  doctorProfile       DoctorProfile?
+  patientAppointments Appointment[]  @relation("PatientAppointments")
+}
+
+model DoctorProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty       String
+  consultFee      Float
+  slotDurationMin Int      @default(30)
+  bufferTimeMin   Int      @default(10)
+
+  workingHours WorkingHours[]
+  leaves       DoctorLeave[]
+  appointments Appointment[]
+}
+
+model WorkingHours {
+  id             String        @id @default(uuid())
+  doctorId       String
+  doctor         DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int           // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime      String        // "09:00"
+  endTime        String        // "17:00"
+  breakStartTime String?       // "13:00"
+  breakEndTime   String?       // "14:00"
+}
+
+model DoctorLeave {
+  id        String        @id @default(uuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    String        @default("APPROVED") // "PENDING", "APPROVED", "CANCELLED"
+  createdAt DateTime      @default(now())
+}
+
+model SlotHold {
+  id        String   @id @default(uuid())
+  doctorId  String
+  patientId String
+  startTime DateTime
+  endTime   DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([doctorId, startTime, endTime])
+}
+
+model Appointment {
+  id              String        @id @default(uuid())
+  patientId       String
+  patient         User          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId        String
+  doctor          DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startTime       DateTime
+  endTime         DateTime
+  status          String        @default("CONFIRMED") // "HELD", "CONFIRMED", "CANCELLED", "COMPLETED"
+  symptoms        String?
+  aiPreSummary    String?
+  aiPostSummary   String?
+  consultNotes    String?
+  calendarEventId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([doctorId, startTime, endTime])
+}
+
+model MedicationReminder {
+  id         String    @id @default(uuid())
+  patientId  String
+  medication String
+  dosage     String
+  frequency  String
+  startDate  DateTime
+  endDate    DateTime
+  lastSentAt DateTime?
+  status     String    @default("ACTIVE")
+  createdAt  DateTime  @default(now())
+}
+
+model NotificationLog {
+  id          String   @id @default(uuid())
+  recipient   String
+  channel     String   @default("EMAIL") // "EMAIL", "SMS", "CALENDAR"
+  template    String
+  payload     String   // JSON string payload
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(5)
+  nextRetryAt DateTime @default(now())
+  status      String   @default("QUEUED") // "QUEUED", "PROCESSING", "SENT", "FAILED", "DLQ"
+  lastError   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, nextRetryAt])
+}
