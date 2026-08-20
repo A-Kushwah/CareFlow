@@ -23,12 +23,12 @@ CarePulse adopts a **Modular Monolith** pattern. Domain modules (`booking`, `doc
 ### 3. Doctor Leave Management Engine
 When a doctor submits leave dates (`startDate` to `endDate`), the system records the approved `DoctorLeave`. It queries all future active appointments falling within the leave range, marks them as `CANCELLED`, and atomically enqueues outbox notifications for patients and Google Calendar deletion sync events. Subsequent slot availability queries filter out approved leave days automatically.
 
-### 4. Transactional Outbox & Atomic Job Claiming
+### 4. Transactional Outbox, Atomic Job Claiming & Stale Lease Recovery
 To prevent external API failures (SMTP email servers, Google Calendar REST API) from rolling back successful appointment bookings:
 - Notification jobs are written to `NotificationLog` inside the booking transaction with unique `idempotencyKey` fields (`appt_email_confirmed_${id}`, `appt_calendar_create_${id}`).
-- **Atomic Job Claiming**: Worker nodes claim pending jobs using a unique `claimToken` in an atomic database update step, preventing parallel worker race conditions and duplicate executions.
-- **Exponential Backoff + Jitter**: `nextRetryAt = NOW() + (10s * 2^attempt) + jitter(0-2s)`.
-- Bounded retries (5 max) transition jobs to the **Dead Letter Queue (DLQ)** for admin inspection and re-queuing.
+- **Atomic Job Claiming & Lease Recovery**: Worker nodes claim pending jobs or stale `PROCESSING` jobs (`claimedAt < NOW() - 5 minutes`) using a unique `claimToken` in an atomic database update step. This prevents worker race conditions, recovers crashed worker jobs, and blocks preempted workers from overwriting reclaimed results.
+- **Adapter Boundary Idempotency**: Email adapter transmits `X-Idempotency-Key` headers; Google Calendar adapter formats event IDs with `idempotencyKey` and handles HTTP 409 duplicate responses gracefully.
+- **Exponential Backoff + Jitter**: `nextRetryAt = NOW() + (10s * 2^attempt) + jitter(0-2s)`. Bounded retries (5 max) transition jobs to the **Dead Letter Queue (DLQ)** for admin inspection and re-queuing.
 
 ### 5. AI Healthcare Assistant & Safety Architecture
 - **Pre-Visit Intake**: Summarizes patient symptoms and suggests clinical focus areas for doctors.
@@ -74,7 +74,7 @@ SMTP_PASS=""
 
 - **Node.js**: `v24.11.0`
 - **npm**: `11.7.0`
-- **Automated Test Suite**: 15/15 Passed (`npm test`)
+- **Automated Test Suite**: 16/16 Passed (`npm test`)
 - **Next.js Production Build**: `✓ Compiled successfully (22/22 static pages)`
 
 ---

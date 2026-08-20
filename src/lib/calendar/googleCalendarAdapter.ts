@@ -4,8 +4,8 @@ export interface CalendarEventPayload {
   patientEmail: string;
   doctorName: string;
   doctorEmail: string;
-  startTime: string; // ISO String
-  endTime: string;   // ISO String
+  startTime: string;
+  endTime: string;
   summary?: string;
   description?: string;
   calendarEventId?: string;
@@ -13,25 +13,25 @@ export interface CalendarEventPayload {
 
 export async function syncCalendarEvent(
   action: string,
-  payload: CalendarEventPayload
+  payload: CalendarEventPayload,
+  idempotencyKey?: string
 ): Promise<{ success: boolean; eventId?: string; error?: string }> {
   const isEnabled = process.env.CALENDAR_ENABLED === 'true';
   const clientId = process.env.GOOGLE_CLIENT_ID;
+  const ik = idempotencyKey || payload.calendarEventId || `cal_ik_${payload.appointmentId || Date.now()}`;
 
   if (!isEnabled || !clientId) {
-    // Demo Mode: Mock Google Calendar Sync
-    console.log(`[GOOGLE CALENDAR ADAPTER] [MOCK MODE] Executing action: ${action}`);
+    // Demo Mode: Mock Google Calendar Sync with Idempotency Key
+    console.log(`[GOOGLE CALENDAR ADAPTER] [MOCK MODE] Executing action: ${action} | IdempotencyKey: ${ik}`);
     console.log(`Summary: Medical Appointment - ${payload.patientName} with ${payload.doctorName}`);
-    console.log(`Time: ${payload.startTime} to ${payload.endTime}`);
 
     return {
       success: true,
-      eventId: payload.calendarEventId || `gcal_mock_${payload.appointmentId.slice(0, 8)}_${Date.now()}`,
+      eventId: payload.calendarEventId || `gcal_mock_${ik}`,
     };
   }
 
   try {
-    // Real Google Calendar API v3 REST dispatch
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
     if (!refreshToken) {
       return {
@@ -40,7 +40,6 @@ export async function syncCalendarEvent(
       };
     }
 
-    // Acquire access token from Google OAuth endpoint
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -59,6 +58,7 @@ export async function syncCalendarEvent(
 
     const accessToken = tokenData.access_token;
     const eventBody = {
+      id: ik.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 100), // Enforce Google Calendar API ID rules for idempotency
       summary: payload.summary || `Consultation: ${payload.patientName} with ${payload.doctorName}`,
       description: payload.description || `CarePulse Appointment ID: ${payload.appointmentId}`,
       start: { dateTime: payload.startTime },
@@ -80,7 +80,13 @@ export async function syncCalendarEvent(
       });
 
       const resData = await res.json();
-      if (!res.ok) return { success: false, error: resData.error?.message || 'Google Calendar creation failed' };
+      if (!res.ok) {
+        // If event already exists due to prior idempotent request, return success
+        if (resData.error?.code === 409) {
+          return { success: true, eventId: eventBody.id };
+        }
+        return { success: false, error: resData.error?.message || 'Google Calendar creation failed' };
+      }
       return { success: true, eventId: resData.id };
     }
 
@@ -94,7 +100,7 @@ export async function syncCalendarEvent(
       return { success: true, eventId: payload.calendarEventId };
     }
 
-    return { success: true, eventId: payload.calendarEventId || `gcal_${Date.now()}` };
+    return { success: true, eventId: payload.calendarEventId || eventBody.id };
   } catch (err: any) {
     return { success: false, error: err.message || 'Google Calendar network sync exception' };
   }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/prisma';
-import { processOutboxNotifications } from '../src/lib/notifications/processor';
+import { processOutboxNotifications, LEASE_DURATION_MS } from '../src/lib/notifications/processor';
 import { NotificationChannel, NotificationStatus } from '../src/lib/types';
 
 test('Notification Outbox: Idempotency Key Duplicate Prevention', async () => {
@@ -72,4 +72,29 @@ test('Notification Outbox: Atomic Job Claiming Race Condition Safety', async () 
 
   // Each of the 5 jobs should be processed exactly once across all 3 workers
   assert.equal(totalProcessedSum, 5, 'Atomic job claiming must ensure total processed jobs equal exactly 5 with 0 duplicates');
+});
+
+test('Notification Outbox: Stale Processing Job Lease Recovery', async () => {
+  // Create a job stuck in PROCESSING state with claimedAt past 6 minutes ago (exceeding 5-min lease)
+  const staleJob = await prisma.notificationLog.create({
+    data: {
+      idempotencyKey: `stale_job_${Date.now()}`,
+      recipient: 'stale.worker@example.com',
+      channel: NotificationChannel.EMAIL,
+      template: 'STALE_LEASE_RECOVERY',
+      payload: '{}',
+      status: NotificationStatus.PROCESSING,
+      claimToken: 'crashed-worker-old-token-999',
+      claimedAt: new Date(Date.now() - (LEASE_DURATION_MS + 60000)), // 6 minutes ago
+      attempts: 1,
+    },
+  });
+
+  // Worker run should detect and reclaim stale job
+  const result = await processOutboxNotifications(10);
+  assert.ok(result.successes >= 1, 'Stale job past lease threshold must be reclaimed and processed');
+
+  const updatedJob = await prisma.notificationLog.findUnique({ where: { id: staleJob.id } });
+  assert.equal(updatedJob?.status, NotificationStatus.SENT, 'Stale job must transition to SENT');
+  assert.notEqual(updatedJob?.claimToken, 'crashed-worker-old-token-999', 'Claim token must be updated by new worker');
 });
