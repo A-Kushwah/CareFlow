@@ -19,7 +19,8 @@ test('1. Double-Booking Concurrency Prevention', async () => {
     },
   });
 
-  const startTime = new Date(Date.now() + 86400000 * 5);
+  const uniqueDayOffset = 30 + Math.floor(Math.random() * 50);
+  const startTime = new Date(Date.now() + 86400000 * uniqueDayOffset);
   startTime.setHours(11, 0, 0, 0);
   const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
 
