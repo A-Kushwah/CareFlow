@@ -8,49 +8,48 @@ export default function Navbar({
   onSelectTab: (tab: 'patient' | 'doctor' | 'admin') => void;
 }) {
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-3.5 shadow-sm">
+    <header className="bg-white border-b border-slate-200 px-6 py-3">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onSelectTab('patient')}>
-          <div className="w-8 h-8 rounded-md bg-slate-900 flex items-center justify-center text-white font-bold text-sm">
-            CP
-          </div>
-          <div>
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></span>
             <span className="text-base font-semibold text-slate-900 tracking-tight">
               CarePulse
             </span>
-            <span className="block text-[11px] text-slate-500 font-medium">
-              Care Coordination Desk
+            <span className="text-xs text-slate-400 font-normal">|</span>
+            <span className="text-xs text-slate-500 font-medium">
+              Clinic Operations
             </span>
           </div>
         </div>
 
-        <nav className="flex items-center space-x-1.5 text-xs font-medium">
+        <nav className="flex items-center space-x-1 text-xs font-medium bg-slate-100 p-1 rounded-md border border-slate-200">
           <button
             onClick={() => onSelectTab('patient')}
-            className={`py-1.5 px-3 rounded-md transition-colors ${
+            className={`py-1.5 px-3 rounded text-xs transition-all ${
               activeTab === 'patient'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Patient Booking
+            Patient Portal
           </button>
           <button
             onClick={() => onSelectTab('doctor')}
-            className={`py-1.5 px-3 rounded-md transition-colors ${
+            className={`py-1.5 px-3 rounded text-xs transition-all ${
               activeTab === 'doctor'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Doctor Schedule
           </button>
           <button
             onClick={() => onSelectTab('admin')}
-            className={`py-1.5 px-3 rounded-md transition-colors ${
+            className={`py-1.5 px-3 rounded text-xs transition-all ${
               activeTab === 'admin'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Operations & Outbox
