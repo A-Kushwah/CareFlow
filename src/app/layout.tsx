@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'CarePulse — Healthcare Appointment & Follow-up Manager',
-  description: 'Enterprise healthcare booking system with zero double-booking concurrency guarantees, doctor leave protection, and AI intake assistant.',
+  description: 'CarePulse appointment booking with doctor schedules, leave handling, notification retries, and AI-assisted visit summaries.',
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
         </main>
 
         <footer className="border-t border-white/10 py-6 text-center text-xs text-gray-500">
-          <p>© 2026 CarePulse Healthcare System • Built with Next.js, Prisma & TypeScript • Non-diagnostic AI assistant</p>
+          <p>© 2026 CarePulse • Next.js, Prisma, and TypeScript • AI summaries are not medical advice</p>
         </footer>
       </body>
     </html>

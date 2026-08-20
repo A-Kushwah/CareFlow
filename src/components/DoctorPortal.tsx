@@ -107,7 +107,7 @@ export default function DoctorPortal() {
           Doctor Leave & Schedule Conflict Manager
         </h3>
         <p className="text-xs text-gray-400 mb-6">
-          Submit doctor leave dates. The engine automatically excludes these dates from availability and cancels/reschedules any conflicting future bookings with instant outbox email delivery.
+          Add leave dates here. New slots will be hidden for those dates, and existing affected appointments will be cancelled with notification jobs added to the outbox.
         </p>
 
         <form onSubmit={handleSubmitLeave} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">

@@ -2,14 +2,14 @@
 
 > **GitHub Repository**: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
-Enterprise-grade **Healthcare Appointment System** built as a modular monolith in **Next.js 14 (App Router), TypeScript, Prisma ORM, Tailwind CSS, PostgreSQL/SQLite**, Google Calendar Sync, and an AI Healthcare Assistant.
+CarePulse is a small healthcare appointment app built with **Next.js 14, TypeScript, Prisma, Tailwind CSS, SQLite for local development, and optional PostgreSQL deployment**. It includes appointment booking, doctor leave management, notification retries, Google Calendar sync, and AI-assisted summaries.
 
 ---
 
 ## System Design Summary (Under 800 Words)
 
 ### 1. Architecture Overview
-CarePulse adopts a **Modular Monolith** pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) share a single TypeScript codebase while maintaining decoupled boundaries. This eliminates microservice networking overhead, enables zero-cost free-tier hosting, and provides instant in-memory transactional guarantees.
+The app uses a modular monolith. Booking, doctor schedules, notifications, AI summaries, Calendar sync, and reminders live in separate modules but share one Next.js application and database. This keeps the project simple to run locally and practical to deploy on free-tier services.
 
 ### 2. Double-Booking Concurrency Engine & Database Strategy
 - **Local Demo (SQLite)**: Double-booking is protected by transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks) in the local SQLite demo. The transaction queries active `Appointment` records and unexpired `SlotHold` entries for time overlap `(existingStart < requestedEnd AND existingEnd > requestedStart)`.

@@ -209,7 +209,7 @@ enum NotificationStatus {
    - If overlap exists -> Rollback transaction, return HTTP 409 Conflict ("Slot no longer available").
    - If clear -> Create `Appointment` record with status `CONFIRMED`, delete `SlotHold`.
    - Transactionally insert `NotificationLog` items for Email and Calendar sync into Outbox with unique `idempotencyKey`.
-5. Response returned instantly (Sub-100ms response). Outbox background worker handles external API delivery asynchronously.
+5. The API returns after the appointment and outbox rows are committed. A background worker handles external API delivery separately.
 
 ### B. Doctor Leave Conflict Flow
 1. Doctor submits leave dates (`startDate` to `endDate`).
@@ -230,7 +230,7 @@ enum NotificationStatus {
 1. Doctor/Patient triggers AI pre-visit or post-visit summary.
 2. Server executes LLM Adapter call with strict 5-second timeout.
 3. Response parsed against Zod JSON schema.
-4. **If API times out, errors, or returns invalid JSON**: System smoothly catches error, logs incident, and injects clean deterministic fallback text:
+4. **If API times out, errors, or returns invalid JSON**: The adapter records the failure and returns a deterministic fallback:
    *"[Automated Fallback] Symptom intake recorded. Medical evaluation requires direct doctor consultation."*
 5. All AI outputs display standard non-diagnostic medical disclaimers.
 

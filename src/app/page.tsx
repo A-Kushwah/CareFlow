@@ -22,7 +22,7 @@ export default function HomePage() {
   const handleBookingConfirmed = () => {
     setSelectedDoctor(null);
     setSelectedSlot(null);
-    setBookingSuccessMsg('🎉 Appointment confirmed successfully! Transactional outbox notifications and calendar sync events queued.');
+    setBookingSuccessMsg('Appointment confirmed. Email and calendar updates have been queued.');
     setTimeout(() => setBookingSuccessMsg(''), 8000);
   };
 

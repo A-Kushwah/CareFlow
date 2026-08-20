@@ -72,7 +72,7 @@ export async function confirmAppointmentTransaction(
     throw new Error('Invalid appointment timing');
   }
 
-  // Execute interactive transaction to guarantee isolation
+  // Re-check availability inside one transaction before creating the appointment.
   return await prisma.$transaction(async (tx) => {
     // 1. Re-check doctor leave status
     const leaveConflict = await tx.doctorLeave.findFirst({
