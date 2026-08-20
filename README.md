@@ -12,8 +12,8 @@ Enterprise-grade **Healthcare Appointment System** built as a modular monolith i
 CarePulse adopts a **Modular Monolith** pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) share a single TypeScript codebase while maintaining decoupled boundaries. This eliminates microservice networking overhead, enables zero-cost free-tier hosting, and provides instant in-memory transactional guarantees.
 
 ### 2. Double-Booking Concurrency Engine & Database Strategy
-- **Local Demo (SQLite)**: Double-booking is prevented via a two-phase reservation protocol (5-minute `SlotHold` + Prisma `$transaction` interactive locks). The transaction queries active `Appointment` records and unexpired `SlotHold` entries for time overlap `(existingStart < requestedEnd AND existingEnd > requestedStart)`.
-- **Production PostgreSQL Deployment**: For production PostgreSQL deployments, concurrency is additionally enforced at the database engine layer via a GiST exclusion constraint:
+- **Local Demo (SQLite)**: Double-booking is protected by transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks) in the local SQLite demo. The transaction queries active `Appointment` records and unexpired `SlotHold` entries for time overlap `(existingStart < requestedEnd AND existingEnd > requestedStart)`.
+- **Production PostgreSQL Deployment**: A PostgreSQL GiST exclusion constraint is documented and should be applied when deploying with PostgreSQL to enforce concurrency at the database engine layer:
   ```sql
   ALTER TABLE "Appointment" ADD CONSTRAINT "no_overlapping_appointments"
   EXCLUDE USING gist ("doctorId" WITH =, tsrange("startTime", "endTime") WITH &&)

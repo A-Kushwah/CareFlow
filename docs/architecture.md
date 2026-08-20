@@ -201,13 +201,14 @@ enum NotificationStatus {
 
 ### A. Appointment Booking & Double-Booking Prevention Flow
 1. Patient selects a doctor, date, and available slot.
-2. System creates a `SlotHold` with `expiresAt = currentTime + 5 mins`.
+2. System creates a 5-minute `SlotHold` with `expiresAt = currentTime + 5 mins`.
 3. Patient completes symptom intake and clicks **Confirm Booking**.
 4. In a Prisma `$transaction`:
    - Query existing active appointments & holds overlapping `[startTime, endTime]`.
+   - Double-booking is protected by transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks) in the local SQLite demo. A PostgreSQL GiST exclusion constraint is documented and should be applied when deploying with PostgreSQL.
    - If overlap exists -> Rollback transaction, return HTTP 409 Conflict ("Slot no longer available").
    - If clear -> Create `Appointment` record with status `CONFIRMED`, delete `SlotHold`.
-   - Transactionally insert `NotificationLog` items for Email and Calendar sync into Outbox.
+   - Transactionally insert `NotificationLog` items for Email and Calendar sync into Outbox with unique `idempotencyKey`.
 5. Response returned instantly (Sub-100ms response). Outbox background worker handles external API delivery asynchronously.
 
 ### B. Doctor Leave Conflict Flow
