@@ -72,8 +72,54 @@ async function main() {
     include: { doctorProfile: true },
   });
 
+  const additionalDoctors = [
+    {
+      email: 'elena.morris@carepulse.com',
+      name: 'Dr. Elena Morris',
+      specialty: 'Dermatology',
+      consultFee: 120.0,
+    },
+    {
+      email: 'james.okafor@carepulse.com',
+      name: 'Dr. James Okafor',
+      specialty: 'Pediatrics',
+      consultFee: 110.0,
+    },
+    {
+      email: 'maya.patel@carepulse.com',
+      name: 'Dr. Maya Patel',
+      specialty: 'Orthopedics',
+      consultFee: 160.0,
+    },
+  ];
+
+  const additionalDoctorUsers = [];
+  for (const doctor of additionalDoctors) {
+    additionalDoctorUsers.push(await prisma.user.create({
+      data: {
+        email: doctor.email,
+        passwordHash: '$2a$10$e.Y0LzU/Y6lJ1f1tVfXy/.4q6P30B4H2s6U6i8N.j5bW0yZ6jWkue',
+        name: doctor.name,
+        role: 'DOCTOR',
+        doctorProfile: {
+          create: {
+            specialty: doctor.specialty,
+            consultFee: doctor.consultFee,
+            slotDurationMin: 30,
+            bufferTimeMin: 10,
+          },
+        },
+      },
+      include: { doctorProfile: true },
+    }));
+  }
+
   // Set working hours (Mon to Fri, 09:00 - 17:00, Break 13:00-14:00)
-  const doctors = [doc1User.doctorProfile, doc2User.doctorProfile];
+  const doctors = [
+    doc1User.doctorProfile,
+    doc2User.doctorProfile,
+    ...additionalDoctorUsers.map((user) => user.doctorProfile),
+  ];
   for (const doc of doctors) {
     if (!doc) continue;
     for (let day = 1; day <= 5; day++) {
