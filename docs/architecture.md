@@ -1,242 +1,70 @@
-# System Architecture & Technical Design
+# Architecture & System Design
 
-## 1. Overview & Modular Monolith Design
-The system is built as a **Modular Monolith** using **Next.js (App Router)** and **TypeScript**, sharing a single codebase while enforcing strict architectural boundaries between modules.
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          Next.js UI & Controllers                      │
-│        (Patient Portal | Doctor Dashboard | Admin Job Console)         │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                             Domain Layer                               │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────┐  │
-│  │ Booking Engine   │  │ Leave Engine     │  │ AI Summary Engine    │  │
-│  │ (Holds/Locks)    │  │ (Conflicts/Sync) │  │ (Triage/Post-visit) │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └──────────┬───────────┘  │
-└───────────┼─────────────────────┼───────────────────────┼──────────────┘
-            │                     │                       │
-┌───────────▼─────────────────────▼───────────────────────▼──────────────┐
-│                    Adapters & Infrastructure Layer                     │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────┐  │
-│  │ Notification     │  │ Calendar Adapter │  │ LLM Adapter          │  │
-│  │ Outbox Worker    │  │ (Google / Mock)  │  │ (OpenAI / Mock)      │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └──────────┬───────────┘  │
-└───────────┼─────────────────────┼───────────────────────┼──────────────┘
-            │                     │                       │
-┌───────────▼─────────────────────▼───────────────────────▼──────────────┐
-│                       Data Layer (Prisma ORM)                          │
-│               PostgreSQL / SQLite Database Storage                     │
-└────────────────────────────────────────────────────────────────────────┘
-```
+CarePulse is built as a **Modular Monolith** in Next.js 14 (App Router), TypeScript, Prisma ORM, and Tailwind CSS. The codebase organizes domain logic into explicit modules while running within a single Next.js application instance and database.
 
 ---
 
-## 2. Application Modules
+## 1. High-Level Architecture Diagram
 
-1. **Authentication & Authorization (`src/lib/auth`)**:
-   - Manages User roles: `ADMIN`, `DOCTOR`, `PATIENT`.
-   - Issues secure HTTP-only cookie session tokens with password hashing (Bcrypt/Argon2 abstraction).
-
-2. **Doctor & Availability Module (`src/lib/doctors`)**:
-   - Doctor profiles, consultation fees, default slot duration (e.g. 30 mins), and buffer time.
-   - Working hours per weekday + daily break times.
-   - Doctor leave requests & vacation management.
-
-3. **Booking & Concurrency Engine (`src/lib/booking`)**:
-   - Computes real-time available time slots for a doctor on a target date.
-   - Creates 5-minute temporary **Slot Holds** to prevent race conditions during booking checkout.
-   - Enforces transactional double-booking checks (`$transaction` interactive locks).
-
-4. **Notification Outbox System (`src/lib/notifications`)**:
-   - Transactional Outbox pattern storing outgoing jobs in `NotificationLog` table.
-   - Background retry worker with exponential backoff (`delay = base * 2^attempt + jitter`).
-   - Dead Letter Queue (`DLQ`) classification after 5 consecutive failures.
-
-5. **AI Healthcare Assistant (`src/lib/ai`)**:
-   - Pre-visit symptom intake summarization for doctors.
-   - Post-visit consultation note synthesis and patient instructions.
-   - Strict Zod output validation, prompt versioning, timeout safeguards, and mock fallbacks.
-
-6. **Google Calendar Adapter (`src/lib/calendar`)**:
-   - Asynchronously creates, updates, or deletes calendar events when appointments are booked/cancelled.
-   - Supports pluggable production Google Calendar API & mock developer mode.
-
----
-
-## 3. Database Schema Design
-
-```prisma
-model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String
-  name         String
-  role         Role          @default(PATIENT)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  doctorProfile DoctorProfile?
-  patientAppointments Appointment[] @relation("PatientAppointments")
-}
-
-enum Role {
-  ADMIN
-  DOCTOR
-  PATIENT
-}
-
-model DoctorProfile {
-  id              String         @id @default(uuid())
-  userId          String         @unique
-  user            User           @relation(fields: [userId], references: [id])
-  specialty       String
-  consultFee      Float
-  slotDurationMin Int            @default(30)
-  bufferTimeMin   Int            @default(10)
-  workingHours    WorkingHours[]
-  leaves          DoctorLeave[]
-  appointments    Appointment[]
-}
-
-model WorkingHours {
-  id              String        @id @default(uuid())
-  doctorId        String
-  doctor          DoctorProfile @relation(fields: [doctorId], references: [id])
-  dayOfWeek       Int           // 0=Sun, 1=Mon, ..., 6=Sat
-  startTime       String        // "09:00"
-  endTime         String        // "17:00"
-  breakStartTime  String?       // "13:00"
-  breakEndTime    String?       // "14:00"
-}
-
-model DoctorLeave {
-  id          String        @id @default(uuid())
-  doctorId    String
-  doctor      DoctorProfile @relation(fields: [doctorId], references: [id])
-  startDate   DateTime
-  endDate     DateTime
-  reason      String
-  status      LeaveStatus   @default(APPROVED)
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  CANCELLED
-}
-
-model SlotHold {
-  id          String   @id @default(uuid())
-  doctorId    String
-  patientId   String
-  startTime   DateTime
-  endTime     DateTime
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-}
-
-model Appointment {
-  id             String            @id @default(uuid())
-  patientId      String
-  patient        User              @relation("PatientAppointments", fields: [patientId], references: [id])
-  doctorId       String
-  doctor         DoctorProfile     @relation(fields: [doctorId], references: [id])
-  startTime      DateTime
-  endTime        DateTime
-  status         AppointmentStatus @default(CONFIRMED)
-  symptoms       String?
-  aiPreSummary   String?
-  aiPostSummary  String?
-  consultNotes   String?
-  calendarEventId String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  @@index([doctorId, startTime, endTime])
-}
-
-enum AppointmentStatus {
-  HELD
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-}
-
-model NotificationLog {
-  id          String             @id @default(uuid())
-  recipient   String
-  channel     NotificationChannel@default(EMAIL)
-  template    String
-  payload     String             // JSON string
-  attempts    Int                @default(0)
-  maxAttempts Int                @default(5)
-  nextRetryAt DateTime           @default(now())
-  status      NotificationStatus @default(QUEUED)
-  lastError   String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-
-  @@index([status, nextRetryAt])
-}
-
-enum NotificationChannel {
-  EMAIL
-  SMS
-  CALENDAR
-}
-
-enum NotificationStatus {
-  QUEUED
-  PROCESSING
-  SENT
-  FAILED
-  DLQ
-}
+```
++-----------------------------------------------------------------------------------+
+|                                 Next.js 14 App Router                             |
+|                                                                                   |
+|  +--------------------+   +---------------------+   +--------------------------+  |
+|  |   Patient Portal   |   |   Doctor Schedule   |   |    Operations Console    |  |
+|  +---------+----------+   +----------+----------+   +------------+-------------+  |
+|            |                         |                           |                |
+|            +-------------------------+---------------------------+                |
+|                                      |                                            |
+|                               v      v      v                                     |
+|  +-----------------------------------------------------------------------------+  |
+|  |                               Domain Modules                                |  |
+|  |  [booking]       [doctors]     [notifications]   [ai]   [calendar]  [reminders]|  |
+|  +---------------------------------------+-------------------------------------+  |
+|                                          |                                        |
++------------------------------------------|----------------------------------------+
+                                           |
+                                           v
++-----------------------------------------------------------------------------------+
+|                               Database Storage Layer                              |
+|   Local: SQLite (dev.db)                                                          |
+|   Production: PostgreSQL (with GiST exclusion constraint on overlapping appointments)|
++-----------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 4. Key Execution Flows
+## 2. Key Technical Subsystems
 
-### A. Appointment Booking & Double-Booking Prevention Flow
-1. Patient selects a doctor, date, and available slot.
-2. System creates a 5-minute `SlotHold` with `expiresAt = currentTime + 5 mins`.
-3. Patient completes symptom intake and clicks **Confirm Booking**.
-4. In a Prisma `$transaction`:
-   - Query existing active appointments & holds overlapping `[startTime, endTime]`.
-   - Double-booking is protected by transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks) in the local SQLite demo. A PostgreSQL GiST exclusion constraint is documented and should be applied when deploying with PostgreSQL.
-   - If overlap exists -> Rollback transaction, return HTTP 409 Conflict ("Slot no longer available").
-   - If clear -> Create `Appointment` record with status `CONFIRMED`, delete `SlotHold`.
-   - Transactionally insert `NotificationLog` items for Email and Calendar sync into Outbox with unique `idempotencyKey`.
-5. The API returns after the appointment and outbox rows are committed. A background worker handles external API delivery separately.
+### A. Double-Booking Prevention & Concurrency Protocol
+1. **Slot Hold Reservation**: When a patient selects an available appointment slot, a temporary `SlotHold` record is created with a 5-minute expiration (`expiresAt = NOW() + 5 minutes`).
+2. **Interactive Transaction Lock**: During checkout confirmation, an interactive Prisma `$transaction` executes:
+   - Queries all existing `Appointment` records with status `CONFIRMED` or `HELD` that overlap the requested range: `(existingStart < requestedEnd AND existingEnd > requestedStart)`.
+   - Queries active unexpired `SlotHold` entries for the same doctor.
+   - If an overlap exists, the transaction rolls back and returns an HTTP 409 Conflict error.
+   - If clear, it creates the `Appointment` record with status `CONFIRMED`, deletes the temporary `SlotHold`, and transactionally writes outbox notifications to `NotificationLog`.
+3. **Database Exclusion Constraint Strategy**: In production PostgreSQL deployments, concurrency is additionally enforced at the database engine level via a GiST exclusion constraint on `(doctorId, tsrange(startTime, endTime))`.
 
-### B. Doctor Leave Conflict Flow
-1. Doctor submits leave dates (`startDate` to `endDate`).
-2. System queries all `Appointment` records for that doctor falling within the leave window.
-3. For each affected appointment:
-   - Status updated to `CANCELLED` (or marked for rescheduling).
-   - `NotificationLog` created to notify patient via email.
-   - `NotificationLog` created to remove/update Google Calendar event.
+### B. Doctor Leave Management Engine
+When a doctor registers leave dates (`startDate` to `endDate`):
+1. An approved `DoctorLeave` record is created in the database.
+2. The engine identifies all active future appointments for that doctor falling within the leave range.
+3. Affected appointments transition to status `CANCELLED`.
+4. Outbox notifications (`APPOINTMENT_CANCELLED`) for affected patients and Google Calendar deletion sync events are transactionally enqueued.
+5. Availability queries filter out slots overlapping approved leave dates automatically.
 
-### C. Notification Retry & DLQ Flow
-1. Background trigger queries `NotificationLog` where `status IN ('QUEUED', 'FAILED') AND nextRetryAt <= NOW()`.
-2. Marks records as `PROCESSING`.
-3. Invokes relevant Adapter (Email/Calendar).
-4. **On Success**: Status updated to `SENT`.
-5. **On Failure**: `attempts` incremented. If `attempts >= maxAttempts`, status updated to `DLQ`. Otherwise, `nextRetryAt = NOW() + (2^attempts * 10s) + jitter` and status reset to `FAILED`.
+### C. Transactional Outbox & Notification Processor
+To prevent external API failures (SMTP servers, Google Calendar API) from rolling back database transactions:
+1. **Outbox Persistence**: Notifications are written to `NotificationLog` inside the primary database transaction with a unique `idempotencyKey`.
+2. **Atomic Job Claiming**: Worker nodes claim candidate jobs (`QUEUED` or `FAILED` ready for retry) using a unique `claimToken` in an atomic database update step.
+3. **Stale Lease Recovery**: Processing jobs stuck in `PROCESSING` past 5 minutes (`claimedAt <= NOW() - 5 minutes`) are reclaimed by active workers.
+4. **Claim-Token Guarded Status Writes**: Updates (`SENT`, `FAILED`, `DLQ`) match both `id` AND `claimToken` to prevent preempted workers from overwriting reclaimed records.
+5. **Exponential Backoff & DLQ**: Failed jobs retry using `nextRetryAt = NOW() + (10s * 2^attempt) + jitter(0-2s)`. After 5 failed attempts, jobs transition to the Dead Letter Queue (DLQ).
 
-### D. LLM Failure & Safety Flow
-1. Doctor/Patient triggers AI pre-visit or post-visit summary.
-2. Server executes LLM Adapter call with strict 5-second timeout.
-3. Response parsed against Zod JSON schema.
-4. **If API times out, errors, or returns invalid JSON**: The adapter records the failure and returns a deterministic fallback:
-   *"[Automated Fallback] Symptom intake recorded. Medical evaluation requires direct doctor consultation."*
-5. All AI outputs display standard non-diagnostic medical disclaimers.
-
----
-
-## 5. Free-Tier Deployment Architecture
-- **App Hosting**: Vercel Free Tier / Netlify / Render Free Web Service.
-- **Database**: Supabase Free Tier PostgreSQL / Render PostgreSQL / Local SQLite.
-- **Cron Jobs**: Vercel Cron (`/api/notifications/process` triggered every 1-5 mins) or GitHub Actions scheduled workflow.
+### D. AI Clinical Assistant Safeguards
+1. **Server-Side Execution**: All LLM calls execute strictly on the server-side API layer.
+2. **Input Truncation**: Inputs are truncated to 2000 characters to prevent prompt injection and token overflow.
+3. **Timeout Safeguards**: API calls are wrapped in 5-second timeout abort controllers.
+4. **Schema Validation**: LLM JSON responses are parsed against Zod schemas (`PreVisitSummarySchema` and `PostVisitSummarySchema`).
+5. **Deterministic Fallbacks**: If the LLM provider times out or fails, the adapter returns structured fallback summaries without disrupting the booking or consultation workflow.
+6. **Non-Diagnostic Medical Disclaimer**: Every AI-generated output includes a mandatory non-diagnostic disclaimer.
