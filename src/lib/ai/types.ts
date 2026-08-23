@@ -2,17 +2,17 @@ import { z } from 'zod';
 
 export const PreVisitSummarySchema = z.object({
   urgencyLevel: z.enum(['Low', 'Medium', 'High']),
-  chiefComplaint: z.string().min(1),
-  suggestedQuestions: z.array(z.string()).min(1),
+  chiefComplaint: z.string().min(1, 'Chief complaint required'),
+  suggestedQuestions: z.array(z.string()).length(3, 'Must provide exactly 3 suggested clinical questions'),
   redFlagsIdentified: z.array(z.string()).default([]),
-  summary: z.string(),
-  disclaimer: z.string(),
+  summary: z.string().min(1, 'Summary required'),
+  disclaimer: z.string().min(1, 'Disclaimer required'),
 });
 
 export type PreVisitSummary = z.infer<typeof PreVisitSummarySchema>;
 
 export const PostVisitSummarySchema = z.object({
-  patientInstructions: z.array(z.string()).min(1),
+  patientInstructions: z.array(z.string()).min(1, 'Patient instructions required'),
   medicationSummary: z.array(
     z.object({
       medication: z.string(),
@@ -22,8 +22,8 @@ export const PostVisitSummarySchema = z.object({
     })
   ).default([]),
   followUpSchedule: z.string().default('As needed'),
-  summary: z.string(),
-  disclaimer: z.string(),
+  summary: z.string().min(1, 'Summary required'),
+  disclaimer: z.string().min(1, 'Disclaimer required'),
 });
 
 export type PostVisitSummary = z.infer<typeof PostVisitSummarySchema>;

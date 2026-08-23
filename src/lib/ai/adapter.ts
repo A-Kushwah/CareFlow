@@ -7,19 +7,39 @@ import {
   PostVisitSummarySchema,
   AiInvokeOptions,
 } from './types';
-import { callOpenAiPreVisit, callOpenAiPostVisit, redactPHI } from './openaiProvider';
+import { callOpenAiPreVisit, callOpenAiPostVisit, redactPHI, validateAiProviderConfig } from './openaiProvider';
 
 const PROMPT_VERSION = '1.0';
 
-// Simple sliding window rate limiter (10 AI requests per minute per user/key)
+// In-Memory sliding window rate limiter
 const rateLimitMap = new Map<string, number[]>();
 
-export function checkAiRateLimit(key: string, limit = 10, windowMs = 60000): boolean {
+export async function checkAiRateLimitPersistent(key: string, limit = 10, windowMs = 60000): Promise<boolean> {
   const now = Date.now();
+  const windowStart = new Date(now - windowMs);
+
+  // 1. Check in-memory sliding window
   const timestamps = (rateLimitMap.get(key) || []).filter((t) => now - t < windowMs);
   if (timestamps.length >= limit) {
     return false;
   }
+
+  // 2. Check persistent database log entries
+  try {
+    const recentDbLogsCount = await prisma.aiGenerationLog.count({
+      where: {
+        OR: [{ patientId: key }, { doctorId: key }],
+        createdAt: { gte: windowStart },
+      },
+    });
+
+    if (recentDbLogsCount >= limit) {
+      return false;
+    }
+  } catch {
+    // Ignore DB errors if DB is unreachable
+  }
+
   timestamps.push(now);
   rateLimitMap.set(key, timestamps);
   return true;
@@ -36,13 +56,20 @@ export async function invokePreVisitLLM(
   symptoms: string,
   options: AiInvokeOptions = {}
 ): Promise<{ summary: PreVisitSummary; provider: string; model: string; auditId?: string }> {
-  const provider = options.overrideProvider || process.env.LLM_PROVIDER || 'mock';
+  // Validate startup configuration
+  const config = validateAiProviderConfig();
+  if (!config.valid) {
+    throw new Error(`AI Provider Configuration Error: ${config.error}`);
+  }
+
+  const provider = options.overrideProvider || config.provider;
   const truncatedSymptoms = symptoms.slice(0, 2000);
   const inputHash = hashInput(truncatedSymptoms);
   const startTime = Date.now();
 
   const rateLimitKey = options.patientId || 'anonymous-previsit';
-  if (!checkAiRateLimit(rateLimitKey)) {
+  const allowed = await checkAiRateLimitPersistent(rateLimitKey);
+  if (!allowed) {
     throw new Error('AI rate limit exceeded. Please wait 1 minute before submitting another request.');
   }
 
@@ -52,8 +79,6 @@ export async function invokePreVisitLLM(
   let promptTokens = 0;
   let completionTokens = 0;
   let requestId: string | undefined;
-  let status = 'SUCCESS';
-  let errorReason: string | undefined;
 
   try {
     if (provider === 'openai') {
@@ -73,7 +98,11 @@ export async function invokePreVisitLLM(
         resultData = {
           urgencyLevel: 'Low',
           chiefComplaint: 'Automated test symptom evaluation',
-          suggestedQuestions: ['What is the duration of symptoms?', 'Have you taken OTC remedies?'],
+          suggestedQuestions: [
+            'How long have you experienced these symptoms?',
+            'Have you tried any over-the-counter treatments?',
+            'Do you have relevant medical history or allergies?',
+          ],
           redFlagsIdentified: [],
           summary: 'Test provider symptom summary.',
           disclaimer: 'AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.',
@@ -99,10 +128,8 @@ export async function invokePreVisitLLM(
     }
   } catch (err: any) {
     latencyMs = Date.now() - startTime;
-    status = 'FAILED';
-    errorReason = err.message || 'LLM provider failure';
+    const errorReason = err.message || 'LLM provider failure';
 
-    // Persist audit failure record
     await prisma.aiGenerationLog.create({
       data: {
         appointmentId: options.appointmentId || null,
@@ -162,13 +189,19 @@ export async function invokePostVisitLLM(
   consultationNotes: string,
   options: AiInvokeOptions = {}
 ): Promise<{ summary: PostVisitSummary; provider: string; model: string; auditId?: string }> {
-  const provider = options.overrideProvider || process.env.LLM_PROVIDER || 'mock';
+  const config = validateAiProviderConfig();
+  if (!config.valid) {
+    throw new Error(`AI Provider Configuration Error: ${config.error}`);
+  }
+
+  const provider = options.overrideProvider || config.provider;
   const truncatedNotes = consultationNotes.slice(0, 2000);
   const inputHash = hashInput(truncatedNotes);
   const startTime = Date.now();
 
   const rateLimitKey = options.doctorId || 'anonymous-postvisit';
-  if (!checkAiRateLimit(rateLimitKey)) {
+  const allowed = await checkAiRateLimitPersistent(rateLimitKey);
+  if (!allowed) {
     throw new Error('AI rate limit exceeded. Please wait 1 minute before submitting another request.');
   }
 
@@ -178,8 +211,6 @@ export async function invokePostVisitLLM(
   let promptTokens = 0;
   let completionTokens = 0;
   let requestId: string | undefined;
-  let status = 'SUCCESS';
-  let errorReason: string | undefined;
 
   try {
     if (provider === 'openai') {
@@ -209,7 +240,6 @@ export async function invokePostVisitLLM(
       latencyMs = Date.now() - startTime;
       modelName = 'mock-clinical-postvisit-v1';
 
-      // Parse explicitly mentioned medications if present in notes
       const meds: any[] = [];
       const amoxMatch = truncatedNotes.match(/amoxicillin\s*(\d+mg)?/i);
       if (amoxMatch) {
@@ -234,8 +264,7 @@ export async function invokePostVisitLLM(
     }
   } catch (err: any) {
     latencyMs = Date.now() - startTime;
-    status = 'FAILED';
-    errorReason = err.message || 'LLM provider failure';
+    const errorReason = err.message || 'LLM provider failure';
 
     await prisma.aiGenerationLog.create({
       data: {

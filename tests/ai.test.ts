@@ -1,20 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { invokePreVisitLLM, invokePostVisitLLM, checkAiRateLimit, hashInput } from '../src/lib/ai/adapter';
-import { redactPHI } from '../src/lib/ai/openaiProvider';
+import { invokePreVisitLLM, invokePostVisitLLM, checkAiRateLimitPersistent, hashInput } from '../src/lib/ai/adapter';
+import { redactPHI, validateAiProviderConfig } from '../src/lib/ai/openaiProvider';
 import { prisma } from '../src/lib/prisma';
 import { registerUser } from '../src/lib/auth/service';
 import { createSessionToken } from '../src/lib/auth/session';
 import { Role } from '../src/lib/types';
 import { POST as postVisitRouteHandler } from '../src/app/api/ai/post-visit/route';
 
-test('AI Module: Pre-Visit Intake with Test Provider and Zod Contract Validation', async () => {
+test('AI Module: Provider Configuration Validation at Startup', async () => {
+  const config = validateAiProviderConfig();
+  assert.ok(config.valid, 'Provider configuration check must return valid for test/mock setup');
+});
+
+test('AI Module: Pre-Visit Intake with Strict Schema Contract Validation (Exactly 3 Questions)', async () => {
   const symptoms = 'Dark skin rashes on left arm with severe itching for 3 days';
   const result = await invokePreVisitLLM(symptoms, { overrideProvider: 'test' });
 
   assert.ok(result.summary.urgencyLevel, 'Must return validated urgency level');
   assert.ok(result.summary.chiefComplaint, 'Must return chief complaint');
-  assert.ok(Array.isArray(result.summary.suggestedQuestions), 'Must return questions array');
+  assert.equal(result.summary.suggestedQuestions.length, 3, 'Must return exactly 3 suggested clinical questions');
   assert.ok(result.summary.disclaimer.includes('not a diagnosis'), 'Must include medical disclaimer');
   assert.equal(result.provider, 'test');
   assert.ok(result.auditId, 'Must create an audit log record');
@@ -55,7 +60,6 @@ test('AI Module: Security Ownership — Doctor cannot generate post-visit for an
 
   const patient = await registerUser(`pat.ai.${Date.now()}@example.com`, 'pass123', 'AI Patient', Role.PATIENT);
 
-  // Appointment belongs to Doctor 1
   const appt = await prisma.appointment.create({
     data: {
       patientId: patient.id,
@@ -67,7 +71,6 @@ test('AI Module: Security Ownership — Doctor cannot generate post-visit for an
     },
   });
 
-  // Doctor 2 attempts to post visit notes for Doctor 1's appointment
   const tokenDoc2 = createSessionToken({
     userId: docUser2.id,
     email: docUser2.email,
@@ -92,15 +95,16 @@ test('AI Module: Security Ownership — Doctor cannot generate post-visit for an
   assert.equal(res.status, 403, 'Doctor attempting post-visit summary for another doctor appointment must be rejected with 403 Forbidden');
 });
 
-test('AI Module: Rate Limiting & PHI Redaction Guard', async () => {
+test('AI Module: Database-Backed Rate Limiting & PHI Redaction Guard', async () => {
   const emailRedacted = redactPHI('Contact patient at alex.rivera@example.com or 555-123-4567');
   assert.ok(emailRedacted.includes('[REDACTED_EMAIL]'), 'Email address must be redacted from logs');
   assert.ok(emailRedacted.includes('[REDACTED_PHONE]'), 'Phone number must be redacted from logs');
 
   const testKey = `rate-limit-test-${Date.now()}`;
   for (let i = 0; i < 10; i++) {
-    assert.equal(checkAiRateLimit(testKey), true);
+    const allowed = await checkAiRateLimitPersistent(testKey);
+    assert.equal(allowed, true);
   }
-  // 11th request in window must be rate limited
-  assert.equal(checkAiRateLimit(testKey), false, '11th request must exceed rate limit');
+  const blocked = await checkAiRateLimitPersistent(testKey);
+  assert.equal(blocked, false, '11th request must exceed rate limit');
 });
