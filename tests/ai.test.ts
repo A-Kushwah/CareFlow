@@ -7,6 +7,11 @@ import { registerUser } from '../src/lib/auth/service';
 import { createSessionToken } from '../src/lib/auth/session';
 import { Role } from '../src/lib/types';
 import { POST as postVisitRouteHandler } from '../src/app/api/ai/post-visit/route';
+import { cleanTestFixtures } from './helpers/cleanup';
+
+test.after(async () => {
+  await cleanTestFixtures();
+});
 
 test('AI Module: Provider Configuration Validation at Startup', async () => {
   const config = validateAiProviderConfig();

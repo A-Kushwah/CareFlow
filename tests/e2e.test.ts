@@ -8,22 +8,18 @@ import { applyDoctorLeave } from '../src/lib/doctors/service';
 import { invokePostVisitLLM } from '../src/lib/ai/adapter';
 import { processOutboxNotifications } from '../src/lib/notifications/processor';
 import { Role } from '../src/lib/types';
+import { cleanTestFixtures } from './helpers/cleanup';
 
 test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
   console.log('--- STARTING E2E WORKFLOW TEST ---');
 
-  const createdUserIds: string[] = [];
   t.after(async () => {
-    // Keep the shared demo database usable after the workflow test.
-    if (createdUserIds.length > 0) {
-      await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
-    }
+    await cleanTestFixtures();
   });
 
   // Step 1: Create Doctor
   const docEmail = `e2e.doctor.${Date.now()}@carepulse.com`;
   const docUser = await registerUser(docEmail, 'doc123', 'Dr. E2E Specialist', Role.DOCTOR);
-  createdUserIds.push(docUser.id);
   
   const doctorProfile = await prisma.doctorProfile.create({
     data: {
@@ -58,7 +54,6 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
   // Step 3: Patient Creates Slot Hold
   const patientEmail = `e2e.patient.${Date.now()}@example.com`;
   const patient = await registerUser(patientEmail, 'pat123', 'E2E Patient', Role.PATIENT);
-  createdUserIds.push(patient.id);
 
   const hold = await createSlotHold(doctorProfile.id, patient.id, selectedSlot.startTime, selectedSlot.endTime);
   assert.ok(hold.id, 'Slot hold must be created successfully');
@@ -76,7 +71,6 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
 
   // Step 5: Verify Concurrent Attempt on Same Slot Fails
   const patient2 = await registerUser(`e2e.patient2.${Date.now()}@example.com`, 'pat123', 'Patient 2', Role.PATIENT);
-  createdUserIds.push(patient2.id);
   await assert.rejects(
     async () => {
       await confirmAppointmentTransaction(patient2.id, doctorProfile.id, selectedSlot.startTime, selectedSlot.endTime);

@@ -7,6 +7,11 @@ import { createSessionToken } from '../src/lib/auth/session';
 import { Role } from '../src/lib/types';
 import { POST as postHoldHandler } from '../src/app/api/appointments/hold/route';
 import { POST as confirmApptHandler } from '../src/app/api/appointments/route';
+import { cleanTestFixtures } from './helpers/cleanup';
+
+test.after(async () => {
+  await cleanTestFixtures();
+});
 
 test('1. Double-Booking Concurrency Prevention', async () => {
   const doctor = await prisma.doctorProfile.findFirst({ include: { user: true } });

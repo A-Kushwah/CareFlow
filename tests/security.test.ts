@@ -10,6 +10,11 @@ import { GET as getAppointmentsHandler, POST as confirmApptHandler } from '../sr
 import { POST as calendarSyncHandler } from '../src/app/api/calendar/sync/route';
 import { POST as doctorLeaveHandler } from '../src/app/api/doctors/leave/route';
 import { GET as getAdminMetricsHandler } from '../src/app/api/admin/metrics/route';
+import { cleanTestFixtures } from './helpers/cleanup';
+
+test.after(async () => {
+  await cleanTestFixtures();
+});
 
 test('Security Authorization: Registration hardcodes PATIENT role', async () => {
   const email = `security.user.${Date.now()}@example.com`;
