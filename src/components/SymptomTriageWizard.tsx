@@ -6,16 +6,17 @@ import { AvailableSlot } from '@/lib/types';
 export default function SymptomTriageWizard({
   doctor,
   slot,
+  currentUser,
   onClose,
   onConfirmed,
 }: {
   doctor: any;
   slot: AvailableSlot;
+  currentUser: any;
   onClose: () => void;
   onConfirmed: () => void;
 }) {
   const [symptoms, setSymptoms] = useState('');
-  const [patientId, setPatientId] = useState('');
   const [holdId, setHoldId] = useState<string | null>(null);
   const [aiSummary, setAiSummary] = useState<any | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -108,12 +109,14 @@ export default function SymptomTriageWizard({
     setErrorMsg('');
 
     try {
+      // SECURITY ENFORCEMENT: Server uses authenticated session identity (session.userId).
+      // Client passes holdId and symptoms without relying on browser-supplied patientId fallbacks.
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           holdId,
-          patientId: patientId || 'demo-patient-id',
+          patientId: currentUser.id,
           symptoms,
         }),
       });

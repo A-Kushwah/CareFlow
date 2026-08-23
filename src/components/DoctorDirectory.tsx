@@ -3,6 +3,18 @@
 import { useState, useEffect } from 'react';
 import { AvailableSlot } from '@/lib/types';
 
+function getNextWeekdayDate() {
+  const date = new Date();
+  const day = date.getDay();
+  if (day === 0) date.setDate(date.getDate() + 1);
+  if (day === 6) date.setDate(date.getDate() + 2);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${dayOfMonth}`;
+}
+
 export default function DoctorDirectory({
   onSelectSlot,
 }: {
@@ -12,9 +24,10 @@ export default function DoctorDirectory({
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    getNextWeekdayDate()
   );
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [availabilityMessage, setAvailabilityMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
 
@@ -42,6 +55,7 @@ export default function DoctorDirectory({
         if (data.slots) {
           setSlots(data.slots);
         }
+        setAvailabilityMessage(data.message || '');
       })
       .finally(() => setSlotsLoading(false));
   }, [selectedDoctorId, selectedDate]);
@@ -140,7 +154,9 @@ export default function DoctorDirectory({
           {slotsLoading ? (
             <p className="text-xs text-slate-500 py-4">Calculating slot availability...</p>
           ) : slots.length === 0 ? (
-            <p className="text-xs text-slate-500 py-4">No available slots on this date or doctor is on leave.</p>
+            <p className="text-xs text-slate-500 py-4">
+              {availabilityMessage || 'No open slots remain for this date.'}
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {slots.map((slot, index) => {

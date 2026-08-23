@@ -17,7 +17,7 @@ const ConfirmAppointmentSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
@@ -84,13 +84,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
     const body = await req.json();
     const validated = ConfirmAppointmentSchema.parse(body);
+
+    if (session.role === Role.PATIENT && validated.patientId && validated.patientId !== session.userId) {
+      return NextResponse.json({ error: 'Forbidden: Cannot book appointments for another user' }, { status: 403 });
+    }
 
     const targetPatientId = session.role === Role.PATIENT ? session.userId : validated.patientId;
 

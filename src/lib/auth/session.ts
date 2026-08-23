@@ -42,7 +42,20 @@ export function verifySessionToken(token: string): SessionPayload | null {
   }
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
+export async function getSession(req?: Request): Promise<SessionPayload | null> {
+  // 1. If Request instance is passed explicitly (e.g. in test handlers), parse cookie from request headers
+  if (req) {
+    const rawCookie = req.headers.get('cookie') || req.headers.get('Cookie');
+    if (rawCookie) {
+      const match = rawCookie.match(/carepulse_session=([^;]+)/);
+      if (match && match[1]) {
+        const sessionPayload = verifySessionToken(match[1]);
+        if (sessionPayload) return sessionPayload;
+      }
+    }
+  }
+
+  // 2. Otherwise read from Next.js server cookie store
   try {
     const cookieStore = cookies();
     const sessionCookie = cookieStore.get('carepulse_session');

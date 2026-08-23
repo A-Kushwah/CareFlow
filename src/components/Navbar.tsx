@@ -3,9 +3,15 @@
 export default function Navbar({
   activeTab,
   onSelectTab,
+  currentUser,
+  onOpenLogin,
+  onLogout,
 }: {
   activeTab: 'patient' | 'doctor' | 'admin';
   onSelectTab: (tab: 'patient' | 'doctor' | 'admin') => void;
+  currentUser: any | null;
+  onOpenLogin: () => void;
+  onLogout: () => void;
 }) {
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-3">
@@ -23,38 +29,65 @@ export default function Navbar({
           </div>
         </div>
 
-        <nav className="flex items-center space-x-1 text-xs font-medium bg-slate-100 p-1 rounded-md border border-slate-200">
-          <button
-            onClick={() => onSelectTab('patient')}
-            className={`py-1.5 px-3 rounded text-xs transition-all ${
-              activeTab === 'patient'
-                ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Patient Portal
-          </button>
-          <button
-            onClick={() => onSelectTab('doctor')}
-            className={`py-1.5 px-3 rounded text-xs transition-all ${
-              activeTab === 'doctor'
-                ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Doctor Schedule
-          </button>
-          <button
-            onClick={() => onSelectTab('admin')}
-            className={`py-1.5 px-3 rounded text-xs transition-all ${
-              activeTab === 'admin'
-                ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Operations & Outbox
-          </button>
-        </nav>
+        <div className="flex items-center space-x-3">
+          <nav className="flex items-center space-x-1 text-xs font-medium bg-slate-100 p-1 rounded-md border border-slate-200">
+            <button
+              onClick={() => onSelectTab('patient')}
+              className={`py-1.5 px-3 rounded text-xs transition-all ${
+                activeTab === 'patient'
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Patient Portal
+            </button>
+            <button
+              onClick={() => onSelectTab('doctor')}
+              className={`py-1.5 px-3 rounded text-xs transition-all ${
+                activeTab === 'doctor'
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Doctor Schedule
+            </button>
+            <button
+              onClick={() => onSelectTab('admin')}
+              className={`py-1.5 px-3 rounded text-xs transition-all ${
+                activeTab === 'admin'
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Operations & Outbox
+            </button>
+          </nav>
+
+          {/* User Auth Badge / Login Button */}
+          {currentUser ? (
+            <div className="flex items-center space-x-2 border-l border-slate-200 pl-3">
+              <span className="text-xs text-slate-700 font-medium">
+                {currentUser.name}{' '}
+                <span className="text-[10px] text-slate-500 uppercase">({currentUser.role})</span>
+              </span>
+              <button
+                onClick={onLogout}
+                className="text-xs text-slate-500 hover:text-rose-600 font-medium border border-slate-200 rounded px-2 py-1 bg-white hover:bg-slate-50"
+              >
+                Log Out
+              </button>
+            </div>
+          ) : (
+            <div className="border-l border-slate-200 pl-3">
+              <button
+                onClick={onOpenLogin}
+                className="btn-primary text-xs py-1.5 px-3"
+              >
+                Log In
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
