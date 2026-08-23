@@ -13,6 +13,7 @@
     "db:seed:local": "prisma generate --schema=prisma/schema.sqlite.prisma && node prisma/seed.js",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "db:studio:local": "prisma studio --schema=prisma/schema.sqlite.prisma",
     "test": "prisma generate --schema=prisma/schema.sqlite.prisma && tsx --test --test-concurrency=1 tests/*.test.ts"
   },
   "dependencies": {
