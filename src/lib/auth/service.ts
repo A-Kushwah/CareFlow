@@ -8,12 +8,19 @@ export function hashPassword(password: string): string {
 }
 
 export function verifyPassword(password: string, hash: string): boolean {
-  // Support simple bcrypt comparison for dev seed if needed
-  if (hash.startsWith('$2a$') || hash.startsWith('$2b$')) {
+  const isProduction = process.env.NODE_ENV === 'production' && process.env.DEVELOPMENT_MODE !== 'true';
+
+  // Demo bcrypt string comparison bypass is ONLY allowed in non-production dev/test environments
+  if (!isProduction && (hash.startsWith('$2a$') || hash.startsWith('$2b$'))) {
     return password === 'admin123' || password === 'patient123' || password === 'doctor123';
   }
+
   const computedHash = hashPassword(password);
-  return crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(hash));
+  try {
+    return crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(hash));
+  } catch {
+    return false;
+  }
 }
 
 export async function authenticateUser(email: string, password: string) {

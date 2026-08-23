@@ -34,6 +34,10 @@ export default function PatientDashboard() {
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
   const [rescheduleBusy, setRescheduleBusy] = useState(false);
 
+  // Google Calendar Settings State
+  const [calendarStatus, setCalendarStatus] = useState<any | null>(null);
+  const [calendarBusy, setCalendarBusy] = useState(false);
+
   const load = async () => {
     setLoading(true);
     setError('');
@@ -54,9 +58,41 @@ export default function PatientDashboard() {
     }
   };
 
+  const fetchCalendarStatus = async () => {
+    try {
+      const res = await fetch('/api/integrations/google-calendar/status');
+      const data = await res.json();
+      if (res.ok) setCalendarStatus(data);
+    } catch {
+      // Ignore fallback
+    }
+  };
+
   useEffect(() => {
     load();
+    fetchCalendarStatus();
   }, []);
+
+  const handleConnectCalendar = () => {
+    window.location.href = '/api/integrations/google-calendar/connect?returnUrl=/';
+  };
+
+  const handleDisconnectCalendar = async () => {
+    setCalendarBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/integrations/google-calendar/disconnect', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to disconnect');
+      setSuccessMsg('Google Calendar connection deactivated.');
+      await fetchCalendarStatus();
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCalendarBusy(false);
+    }
+  };
 
   const doctors = useMemo(() => {
     const grouped = new Map<string, any>();
@@ -76,7 +112,6 @@ export default function PatientDashboard() {
     return appointments.filter((a) => a.status === 'COMPLETED' || a.status === 'CANCELLED');
   }, [appointments]);
 
-  // Load available slots when reschedule date changes
   useEffect(() => {
     if (!reschedulingAppt || !rescheduleDate) return;
     setRescheduleLoading(true);
@@ -179,6 +214,10 @@ export default function PatientDashboard() {
     }
   };
 
+  const isConnected = calendarStatus?.isConnected;
+  const isReauth = calendarStatus?.connection?.status === 'REAUTH_REQUIRED';
+  const accountEmail = calendarStatus?.connection?.providerAccountEmail;
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8" aria-label="Patient Workspace">
       {/* Workspace Header */}
@@ -206,6 +245,44 @@ export default function PatientDashboard() {
           {successMsg}
         </div>
       )}
+
+      {/* Account Integration & Per-User Google Calendar Card */}
+      <section className="neu-panel p-5 border border-[#EEF2F7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-extrabold text-[#26323B]">Google Calendar Integration</h2>
+            <span className={`clinical-badge-${isConnected ? 'success' : isReauth ? 'warning' : 'neutral'}`}>
+              {isConnected ? 'Connected' : isReauth ? 'Re-authorization Required' : 'Not Connected'}
+            </span>
+          </div>
+          <p className="text-xs text-[#56616B]">
+            {isConnected
+              ? `Authorized for ${accountEmail || 'your Google account'}. Appointments auto-sync directly to your personal calendar.`
+              : isReauth
+              ? 'Your Google OAuth token was revoked or expired. Please re-authorize to resume automated calendar sync.'
+              : 'Connect your personal Google Calendar to receive automatic appointment invites.'}
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {isConnected ? (
+            <button
+              onClick={handleDisconnectCalendar}
+              disabled={calendarBusy}
+              className="neu-btn-secondary text-xs text-[#B42318] border-[#FECDCA] min-h-[40px]"
+            >
+              {calendarBusy ? 'Disconnecting…' : 'Disconnect Calendar'}
+            </button>
+          ) : (
+            <button
+              onClick={handleConnectCalendar}
+              className="neu-btn-primary text-xs min-h-[40px]"
+            >
+              {isReauth ? 'Re-authorize Google Calendar' : 'Connect Google Calendar'}
+            </button>
+          )}
+        </div>
+      </section>
 
       {loading ? (
         <div className="neu-panel py-16 text-center text-sm font-semibold text-[#56616B]">
@@ -340,7 +417,6 @@ export default function PatientDashboard() {
 
                   return (
                     <article key={appointment.id} className="neu-card p-6 border border-[#EEF2F7] space-y-5">
-                      {/* Prominent Date & Time Header */}
                       <div className="grid md:grid-cols-[260px_1fr_auto] gap-6 items-start border-b border-[#D4D9E2] pb-4">
                         <div className="neu-inset p-4 space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-[#66727D]">Consultation Date</span>
@@ -361,7 +437,6 @@ export default function PatientDashboard() {
                         <span className="clinical-badge-neutral">{appointment.status}</span>
                       </div>
 
-                      {/* What you reported */}
                       {appointment.symptoms && (
                         <div className="bg-[#EEF2F7] border border-[#D4D9E2] rounded-xl p-3.5 space-y-1">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#56616B]">What You Reported:</span>
@@ -369,7 +444,6 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* Clinician Notes */}
                       {appointment.consultNotes && (
                         <div className="bg-[#EEF2F7] border border-[#D4D9E2] rounded-2xl p-4 space-y-2">
                           <div className="flex items-center justify-between">
@@ -390,7 +464,6 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* Doctor-Authored Prescriptions (Prescription Model) */}
                       {activePrescriptions.length > 0 && (
                         <div className="bg-[#E6F4F1] border-2 border-[#16866D] rounded-2xl p-5 space-y-4">
                           <div className="flex flex-wrap items-center justify-between border-b border-[#9EE2D4] pb-2.5 gap-2">
@@ -421,7 +494,6 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* Patient Status Badges & AI Explanation Container */}
                       {isAiAvailable && (
                         <div className="bg-[#EEF2F7] border border-[#5667D8]/30 rounded-2xl p-5 text-xs space-y-3">
                           <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-2">

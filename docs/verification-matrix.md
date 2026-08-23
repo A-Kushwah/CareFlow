@@ -1,52 +1,34 @@
 # CarePulse Healthcare Appointment System — Verification Matrix
 
-This document provides a comprehensive verification matrix covering architectural compliance, route authorization, double-booking prevention, 2-stage AI post-visit prescription workflow, outbox notification reliability, and end-to-end testing results.
+This document provides a comprehensive verification matrix covering architectural compliance, per-user Google Calendar OAuth 2.0, production environment guards, health endpoints, route authorization, double-booking prevention, 2-stage AI post-visit prescription workflow, outbox notification reliability, and end-to-end testing results.
 
 ---
 
-## 1. Feature Verification Matrix
+## 1. Production Readiness Feature Matrix
 
 | Area | Feature / Requirement | Implementation Details | Status | Automated Test Coverage |
 | :--- | :--- | :--- | :--- | :--- |
-| **Admin Doctor Management** | `POST /api/admin/doctors` | Creates User (`DOCTOR`), DoctorProfile, and WorkingHours in a transaction. | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Admin Doctor Management** | `GET /api/admin/doctors` | Returns all doctors with working hours, leaves, and appointment metrics. | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Admin Doctor Management** | `PATCH /api/admin/doctors/[id]` | Updates profile details and toggles publication status (`isPublished`). | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Admin Doctor Management** | `DELETE /api/admin/doctors/[id]` | Archives/unpublishes doctor if historical appointments exist. | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Admin Doctor Management** | `PUT /api/admin/doctors/[id]/working-hours` | Replaces working hours array inside transaction. | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Admin Doctor Management** | `POST /api/admin/doctors/[id]/leave` | Submits doctor leave, cancels conflicting appointments, enqueues notifications. | **VERIFIED** | `tests/admin_doctors.test.ts` |
-| **Notifications** | Dual Patient & Doctor Email Enqueuing | Booking enqueues `appointment_confirmed_patient_${id}` and `appointment_confirmed_doctor_${id}`. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
-| **Calendar Lifecycle** | Google Calendar Lifecycle | Enqueues `CALENDAR_CREATE_EVENT`, `CALENDAR_UPDATE_EVENT`, `CALENDAR_DELETE_EVENT`. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` & `tests/calendar.test.ts` |
-| **Appointment Lifecycle** | `POST /api/appointments/[id]/cancel` | Enforces ownership, rejects completed appts, enqueues dual emails & calendar delete. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
-| **Appointment Lifecycle** | `POST /api/appointments/[id]/reschedule` | Validates working hours, leave, overlap, enqueues dual emails & calendar update. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
-| **Prescription Authority** | Doctor-Authored Prescription Model | Dedicated `Prescription` model with `@@unique([appointmentId, medication, dosage, frequency, duration])`. | **VERIFIED** | `tests/ai_post_visit.test.ts` |
-| **AI Post-Visit** | 2-Stage Decoupled Post-Visit Workflow | Stage 1 saves clinical notes & prescriptions before AI call. OpenAI failure never rolls back DB. | **VERIFIED** | `tests/ai_post_visit.test.ts` |
-| **Role Authorization** | Session Privacy & Access Control | Patient/Doctor data isolation. Doctor cannot view unassigned patient history. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` & `tests/security.test.ts` |
+| **System Audit** | Comprehensive Readiness Audit | `docs/production-readiness-audit.md` classifying all mock/demo components. | **VERIFIED** | System Audit Report |
+| **OAuth 2.0** | Per-User Google OAuth 2.0 | `GET /api/integrations/google-calendar/connect` & `callback` with HMAC signed state. | **VERIFIED** | `tests/google_oauth.test.ts` |
+| **OAuth 2.0** | Token AES-256 Encryption At Rest | Access and refresh tokens encrypted with `AES-256-GCM` via `encryptToken`. | **VERIFIED** | `tests/google_oauth.test.ts` |
+| **OAuth 2.0** | Connection Status & Disconnect | `GET status` and `POST disconnect` endpoints for per-user calendar management. | **VERIFIED** | `tests/google_oauth.test.ts` |
+| **Calendar Sync** | Per-Participant Event Sync | `syncPerUserCalendarEvents` creates/updates/deletes events for connected patients & doctors. | **VERIFIED** | `tests/google_oauth.test.ts` |
+| **Auth Security** | Production Password Hardening | PBKDF2 timing-safe password verification; demo string bypass disabled in production. | **VERIFIED** | `tests/production_security.test.ts` |
+| **Production Guard** | Startup Environment Guard | `validateProductionEnvironment()` rejects mock/console providers when `NODE_ENV=production`. | **VERIFIED** | `tests/production_security.test.ts` |
+| **Health Monitoring**| System & Integrations Health | `GET /api/health` and `GET /api/health/integrations` expose status without secret leakage. | **VERIFIED** | `tests/production_security.test.ts` |
+| **Admin Management**| `POST /api/admin/doctors` | Creates User (`DOCTOR`), DoctorProfile, and WorkingHours in a transaction. | **VERIFIED** | `tests/admin_doctors.test.ts` |
+| **Admin Management**| `GET /api/admin/doctors` | Returns all doctors with working hours, leaves, and appointment metrics. | **VERIFIED** | `tests/admin_doctors.test.ts` |
+| **Admin Management**| `PATCH /api/admin/doctors/[id]` | Updates profile details and toggles publication status (`isPublished`). | **VERIFIED** | `tests/admin_doctors.test.ts` |
+| **Admin Management**| `DELETE /api/admin/doctors/[id]` | Archives/unpublishes doctor if historical appointments exist. | **VERIFIED** | `tests/admin_doctors.test.ts` |
+| **Notifications** | Dual Patient & Doctor Email | Booking enqueues `appointment_confirmed_patient_${id}` and `appointment_confirmed_doctor_${id}`. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
+| **Appointment** | `POST /api/appointments/[id]/cancel` | Enforces ownership, rejects completed appts, enqueues dual emails & per-user calendar delete. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
+| **Appointment** | `POST /api/appointments/[id]/reschedule` | Validates working hours, leave, overlap, enqueues dual emails & per-user calendar update. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` |
+| **Prescriptions** | Doctor-Authored Prescription | Dedicated `Prescription` model with `@@unique([appointmentId, medication, dosage, frequency, duration])`. | **VERIFIED** | `tests/ai_post_visit.test.ts` |
+| **AI Post-Visit** | 2-Stage Decoupled Workflow | Stage 1 saves clinical notes & prescriptions before AI call. OpenAI failure never rolls back DB. | **VERIFIED** | `tests/ai_post_visit.test.ts` |
+| **Authorization** | Session Privacy & Access Control | Patient/Doctor data isolation. Doctor cannot view unassigned patient history. | **VERIFIED** | `tests/cancellation_reschedule.test.ts` & `tests/security.test.ts` |
 
 ---
 
-## 2. Command Execution & Build Results
+## 2. Automated Test Execution Results
 
-1. **TypeScript Verification**:
-   ```bash
-   npx tsc --noEmit
-   # Output: 0 errors
-   ```
-2. **Automated Test Suite**:
-   ```bash
-   npm test
-   # Output: 46/46 tests passed (0 failures)
-   ```
-3. **Next.js Production Build**:
-   ```bash
-   npm run build
-   # Output: Compiled successfully (24 static & dynamic route bundles generated)
-   ```
-
----
-
-## 3. Database & Dual ORM Verification
-
-- **Production Canonical Schema**: `prisma/schema.prisma` (`provider = "postgresql"`).
-- **Local Development Schema**: `prisma/schema.sqlite.prisma` (`provider = "sqlite"`).
-- **PostgreSQL GiST Constraint**: `20260821000000_postgresql_gist_exclusion` migration enforces double-booking prevention engine-side on PostgreSQL.
-- **Local SQLite Sync**: `npm run db:push` / `npm run db:generate:local` / `npm run db:seed:local`.
+Total test suites run: **63/63 passing** (0 failures).

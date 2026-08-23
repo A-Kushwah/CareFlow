@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@/lib/types';
+import { syncPerUserCalendarEvents } from '@/lib/calendar/perUserCalendarService';
 import { z } from 'zod';
 
 const RescheduleAppointmentSchema = z.object({
@@ -186,6 +187,9 @@ export async function POST(req: Request, context?: any) {
 
       return appt;
     });
+
+    // Trigger Per-User Google Calendar Update asynchronously
+    syncPerUserCalendarEvents('UPDATE', appointmentId).catch(() => {});
 
     return NextResponse.json({
       success: true,

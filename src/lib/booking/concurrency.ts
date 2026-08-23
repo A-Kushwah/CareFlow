@@ -1,5 +1,6 @@
 import { prisma } from '../prisma';
 import { AppointmentStatus, LeaveStatus, NotificationChannel, NotificationStatus } from '../types';
+import { syncPerUserCalendarEvents } from '../calendar/perUserCalendarService';
 
 export async function createSlotHold(doctorId: string, patientId: string, startTimeISO: string, endTimeISO: string) {
   const startTime = new Date(startTimeISO);
@@ -85,7 +86,7 @@ export async function confirmAppointmentTransaction(
     throw new Error('Invalid appointment timing');
   }
 
-  return await prisma.$transaction(async (tx) => {
+  const appointment = await prisma.$transaction(async (tx) => {
     // 1. If holdId is provided, re-verify hold existence and validity INSIDE transaction
     if (holdId) {
       const activeHold = await tx.slotHold.findUnique({ where: { id: holdId } });
@@ -142,7 +143,7 @@ export async function confirmAppointmentTransaction(
     }
 
     // 6. Create Confirmed Appointment
-    const appointment = await tx.appointment.create({
+    const appt = await tx.appointment.create({
       data: {
         patientId,
         doctorId,
@@ -171,17 +172,17 @@ export async function confirmAppointmentTransaction(
 
     // 8a. Enqueue Patient Confirmation Email
     const patientEmailPayload = JSON.stringify({
-      appointmentId: appointment.id,
+      appointmentId: appt.id,
       patientName: patient.name,
       patientEmail: patient.email,
       doctorName: doctor.user.name,
-      startTime: appointment.startTime.toISOString(),
+      startTime: appt.startTime.toISOString(),
       symptoms: symptoms || 'N/A',
     });
 
     await tx.notificationLog.create({
       data: {
-        idempotencyKey: `appointment_confirmed_patient_${appointment.id}`,
+        idempotencyKey: `appointment_confirmed_patient_${appt.id}`,
         recipient: patient.email,
         channel: NotificationChannel.EMAIL,
         template: 'APPOINTMENT_CONFIRMED_PATIENT',
@@ -194,18 +195,18 @@ export async function confirmAppointmentTransaction(
 
     // 8b. Enqueue Doctor Confirmation Email
     const doctorEmailPayload = JSON.stringify({
-      appointmentId: appointment.id,
+      appointmentId: appt.id,
       patientName: patient.name,
       patientEmail: patient.email,
       doctorName: doctor.user.name,
       doctorEmail: doctor.user.email,
-      startTime: appointment.startTime.toISOString(),
+      startTime: appt.startTime.toISOString(),
       symptoms: symptoms || 'N/A',
     });
 
     await tx.notificationLog.create({
       data: {
-        idempotencyKey: `appointment_confirmed_doctor_${appointment.id}`,
+        idempotencyKey: `appointment_confirmed_doctor_${appt.id}`,
         recipient: doctor.user.email,
         channel: NotificationChannel.EMAIL,
         template: 'APPOINTMENT_CONFIRMED_DOCTOR',
@@ -216,21 +217,21 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 9. Enqueue Google Calendar Outbox Notification
+    // 9. Enqueue Legacy Outbox Notification
     const calendarPayload = JSON.stringify({
-      appointmentId: appointment.id,
+      appointmentId: appt.id,
       patientName: patient.name,
       patientEmail: patient.email,
       doctorName: doctor.user.name,
       doctorEmail: doctor.user.email,
-      startTime: appointment.startTime.toISOString(),
-      endTime: appointment.endTime.toISOString(),
+      startTime: appt.startTime.toISOString(),
+      endTime: appt.endTime.toISOString(),
       summary: `Medical Consultation: ${patient.name} with ${doctor.user.name}`,
     });
 
     await tx.notificationLog.create({
       data: {
-        idempotencyKey: `appointment_calendar_create_${appointment.id}`,
+        idempotencyKey: `appointment_calendar_create_${appt.id}`,
         recipient: doctor.user.email,
         channel: NotificationChannel.CALENDAR,
         template: 'CALENDAR_CREATE_EVENT',
@@ -241,6 +242,11 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    return appointment;
+    return appt;
   });
+
+  // Trigger Per-User Google Calendar Sync asynchronously after transaction commits
+  syncPerUserCalendarEvents('CREATE', appointment.id).catch(() => {});
+
+  return appointment;
 }

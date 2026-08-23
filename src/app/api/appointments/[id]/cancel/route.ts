@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@/lib/types';
+import { syncPerUserCalendarEvents } from '@/lib/calendar/perUserCalendarService';
 import { z } from 'zod';
 
 const CancelAppointmentSchema = z.object({
@@ -125,6 +126,9 @@ export async function POST(req: Request, context?: any) {
 
       return appt;
     });
+
+    // Trigger Per-User Google Calendar Deletion asynchronously
+    syncPerUserCalendarEvents('DELETE', appointmentId).catch(() => {});
 
     return NextResponse.json({
       success: true,
