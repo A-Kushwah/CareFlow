@@ -12,6 +12,17 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const returnUrl = searchParams.get('returnUrl') || '/settings';
 
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return NextResponse.redirect(
+        new URL(
+          `/?error=${encodeURIComponent(
+            'Google OAuth client credentials (GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET) are not configured in environment variables.'
+          )}`,
+          req.url
+        )
+      );
+    }
+
     const authUrl = await getGoogleAuthUrl(session.userId, returnUrl);
     return NextResponse.redirect(authUrl);
   } catch (err: any) {

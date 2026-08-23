@@ -71,9 +71,26 @@ export default function PatientDashboard() {
   useEffect(() => {
     load();
     fetchCalendarStatus();
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get('error');
+      const connectedParam = params.get('calendar_connected');
+
+      if (urlError) {
+        setError(decodeURIComponent(urlError));
+      } else if (connectedParam === 'true') {
+        setSuccessMsg('Google Calendar connected successfully!');
+        setTimeout(() => setSuccessMsg(''), 5000);
+      }
+    }
   }, []);
 
   const handleConnectCalendar = () => {
+    if (calendarStatus && calendarStatus.isOauthConfigured === false) {
+      setError('Google OAuth Client credentials (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET) must be configured in environment variables.');
+      return;
+    }
     window.location.href = '/api/integrations/google-calendar/connect?returnUrl=/';
   };
 
@@ -235,8 +252,13 @@ export default function PatientDashboard() {
       </header>
 
       {error && (
-        <div className="p-4 bg-[#FEEFEE] border-l-4 border-[#B42318] text-xs font-bold text-[#B42318] rounded-r-xl">
-          {error}
+        <div className="p-4 bg-[#FEEFEE] border-l-4 border-[#B42318] text-xs font-bold text-[#B42318] rounded-r-xl space-y-1">
+          <p>{error}</p>
+          {error.includes('GOOGLE_CLIENT_ID') && (
+            <p className="text-[11px] font-normal text-[#56616B]">
+              To enable Google OAuth calendar sync, set <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_ID</code> and <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_SECRET</code> in your local <code className="bg-white px-1 py-0.5 rounded border">.env</code> file.
+            </p>
+          )}
         </div>
       )}
 

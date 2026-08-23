@@ -89,9 +89,26 @@ export default function DoctorPortal() {
   useEffect(() => {
     loadSchedule();
     fetchCalendarStatus();
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get('error');
+      const connectedParam = params.get('calendar_connected');
+
+      if (urlError) {
+        setError(decodeURIComponent(urlError));
+      } else if (connectedParam === 'true') {
+        setMessage('Google Calendar connected successfully!');
+        setTimeout(() => setMessage(''), 5000);
+      }
+    }
   }, []);
 
   const handleConnectCalendar = () => {
+    if (calendarStatus && calendarStatus.isOauthConfigured === false) {
+      setError('Google OAuth Client credentials (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET) must be configured in environment variables.');
+      return;
+    }
     window.location.href = '/api/integrations/google-calendar/connect?returnUrl=/';
   };
 
@@ -347,7 +364,12 @@ export default function DoctorPortal() {
 
       {(message || error) && (
         <div className={`p-4 border-l-4 text-xs font-bold rounded-r-xl ${error ? 'bg-[#FEEFEE] border-[#B42318] text-[#B42318]' : 'bg-[#E6F4F1] border-[#16866D] text-[#16866D]'}`}>
-          {error || message}
+          <p>{error || message}</p>
+          {error.includes('GOOGLE_CLIENT_ID') && (
+            <p className="text-[11px] font-normal text-[#56616B] mt-1">
+              To enable Google OAuth calendar sync, set <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_ID</code> and <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_SECRET</code> in your local <code className="bg-white px-1 py-0.5 rounded border">.env</code> file.
+            </p>
+          )}
         </div>
       )}
 

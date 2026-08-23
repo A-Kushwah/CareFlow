@@ -9,6 +9,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
+    const isOauthConfigured = Boolean(
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    );
+
     const conn = await prisma.googleCalendarConnection.findUnique({
       where: { userId_provider: { userId: session.userId, provider: 'google' } },
       select: {
@@ -27,6 +31,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         success: true,
         isConnected: false,
+        isOauthConfigured,
         status: 'NOT_CONNECTED',
       });
     }
@@ -34,6 +39,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       isConnected: conn.status === 'CONNECTED',
+      isOauthConfigured,
       connection: conn,
     });
   } catch (err: any) {
