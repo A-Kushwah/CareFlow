@@ -137,8 +137,12 @@ test('5. Exact HoldId Atomic Consumption', async () => {
   const patient = await registerUser(`atomic.patient.${Date.now()}@example.com`, 'pass123', 'Atomic Patient', Role.PATIENT);
   assert.ok(doctor, 'Doctor must exist');
 
-  const startTime = new Date(Date.now() + 86400000 * 120);
+  const startTime = new Date(Date.now() + 86400000 * 150);
   const endTime = new Date(startTime.getTime() + 1800000);
+
+  await prisma.appointment.deleteMany({
+    where: { doctorId: doctor.id, startTime, endTime },
+  });
 
   const hold = await prisma.slotHold.create({
     data: {

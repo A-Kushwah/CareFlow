@@ -86,7 +86,18 @@ export async function confirmAppointmentTransaction(
   }
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Re-check doctor leave status
+    // 1. If holdId is provided, re-verify hold existence and validity INSIDE transaction
+    if (holdId) {
+      const activeHold = await tx.slotHold.findUnique({ where: { id: holdId } });
+      if (!activeHold || activeHold.expiresAt <= new Date()) {
+        throw new Error('Appointment hold expired');
+      }
+      if (activeHold.patientId !== patientId) {
+        throw new Error('Appointment hold belongs to another patient');
+      }
+    }
+
+    // 2. Re-check doctor leave status
     const leaveConflict = await tx.doctorLeave.findFirst({
       where: {
         doctorId,
@@ -100,7 +111,7 @@ export async function confirmAppointmentTransaction(
       throw new Error(`Cannot book: Doctor is on approved leave (${leaveConflict.reason})`);
     }
 
-    // 2. Lock & re-check overlapping confirmed/held appointments
+    // 3. Lock & re-check overlapping confirmed/held appointments
     const apptConflict = await tx.appointment.findFirst({
       where: {
         doctorId,
@@ -114,13 +125,13 @@ export async function confirmAppointmentTransaction(
       throw new Error('CONCURRENCY_CONFLICT: Slot was booked by another patient simultaneously.');
     }
 
-    // 3. Verify Patient Existence & Role
+    // 4. Verify Patient Existence & Role
     const patient = await tx.user.findUnique({ where: { id: patientId } });
     if (!patient) {
       throw new Error('Authenticated patient account not found');
     }
 
-    // 4. Verify Doctor Existence
+    // 5. Verify Doctor Existence
     const doctor = await tx.doctorProfile.findUnique({
       where: { id: doctorId },
       include: { user: true },
@@ -130,7 +141,7 @@ export async function confirmAppointmentTransaction(
       throw new Error('Doctor profile not found');
     }
 
-    // 5. Create Confirmed Appointment
+    // 6. Create Confirmed Appointment
     const appointment = await tx.appointment.create({
       data: {
         patientId,
@@ -143,7 +154,7 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 6. Atomically delete the exact confirmed hold (or all matching slot holds)
+    // 7. Atomically delete the exact confirmed hold (or all matching slot holds)
     if (holdId) {
       await tx.slotHold.deleteMany({
         where: { id: holdId },
@@ -158,7 +169,7 @@ export async function confirmAppointmentTransaction(
       });
     }
 
-    // 7. Enqueue Email Outbox Notification
+    // 8. Enqueue Email Outbox Notification
     const emailPayload = JSON.stringify({
       appointmentId: appointment.id,
       patientName: patient.name,
@@ -181,7 +192,7 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 8. Enqueue Google Calendar Outbox Notification
+    // 9. Enqueue Google Calendar Outbox Notification
     const calendarPayload = JSON.stringify({
       appointmentId: appointment.id,
       patientName: patient.name,
