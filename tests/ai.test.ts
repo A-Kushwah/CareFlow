@@ -53,17 +53,17 @@ test('AI Module: Post-Visit Summary does not invent non-existent medications', a
 });
 
 test('AI Module: Security Ownership — Doctor cannot generate post-visit for another doctor appointment', async () => {
-  const docUser1 = await registerUser(`doc1.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR);
+  const docUser1 = await registerUser(`doc1.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
   const docProfile1 = await prisma.doctorProfile.create({
-    data: { userId: docUser1.id, specialty: 'Dermatology', consultFee: 120 },
+    data: { userId: docUser1.id, specialty: 'Dermatology', consultFee: 120, isTestFixture: true },
   });
 
-  const docUser2 = await registerUser(`doc2.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR);
+  const docUser2 = await registerUser(`doc2.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
   const docProfile2 = await prisma.doctorProfile.create({
-    data: { userId: docUser2.id, specialty: 'General', consultFee: 100 },
+    data: { userId: docUser2.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
 
-  const patient = await registerUser(`pat.ai.${Date.now()}@example.com`, 'pass123', 'AI Patient', Role.PATIENT);
+  const patient = await registerUser(`pat.ai.${Date.now()}@example.com`, 'pass123', 'AI Patient', Role.PATIENT, true);
 
   const appt = await prisma.appointment.create({
     data: {

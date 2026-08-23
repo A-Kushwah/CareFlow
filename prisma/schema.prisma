@@ -15,13 +15,14 @@ generator client {
 // WHERE (status IN ('CONFIRMED', 'HELD'));
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         String   @default("PATIENT") // "ADMIN", "DOCTOR", "PATIENT"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          String   @default("PATIENT") // "ADMIN", "DOCTOR", "PATIENT"
+  isTestFixture Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   doctorProfile       DoctorProfile?
   patientAppointments Appointment[]  @relation("PatientAppointments")
@@ -35,6 +36,8 @@ model DoctorProfile {
   consultFee      Float
   slotDurationMin Int      @default(30)
   bufferTimeMin   Int      @default(10)
+  isPublished     Boolean  @default(true)
+  isTestFixture   Boolean  @default(false)
 
   workingHours WorkingHours[]
   leaves       DoctorLeave[]

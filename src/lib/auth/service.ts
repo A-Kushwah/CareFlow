@@ -35,7 +35,13 @@ export async function authenticateUser(email: string, password: string) {
   };
 }
 
-export async function registerUser(email: string, password: string, name: string, role: Role = Role.PATIENT) {
+export async function registerUser(
+  email: string,
+  password: string,
+  name: string,
+  role: Role = Role.PATIENT,
+  isTestFixture: boolean = false
+) {
   const existing = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
   });
@@ -51,6 +57,7 @@ export async function registerUser(email: string, password: string, name: string
       passwordHash,
       name,
       role,
+      isTestFixture,
     },
   });
 

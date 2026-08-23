@@ -18,7 +18,7 @@ test.after(async () => {
 
 test('Security Authorization: Registration hardcodes PATIENT role', async () => {
   const email = `security.user.${Date.now()}@example.com`;
-  const user = await registerUser(email, 'password123', 'Security Test User', Role.PATIENT);
+  const user = await registerUser(email, 'password123', 'Security Test User', Role.PATIENT, true);
   assert.equal(user.role, Role.PATIENT, 'Registered user must have PATIENT role');
 });
 
@@ -29,6 +29,7 @@ test('Security Data Isolation: Patients cannot query other patient appointments'
       passwordHash: 'hash',
       name: 'Patient One',
       role: Role.PATIENT,
+      isTestFixture: true,
     },
   });
 
@@ -38,6 +39,7 @@ test('Security Data Isolation: Patients cannot query other patient appointments'
       passwordHash: 'hash',
       name: 'Patient Two',
       role: Role.PATIENT,
+      isTestFixture: true,
     },
   });
 
@@ -50,7 +52,7 @@ test('Security Data Isolation: Patients cannot query other patient appointments'
 });
 
 test('Security Privacy: Patient cannot submit doctor leave', async () => {
-  const patient = await registerUser(`patient.leave.${Date.now()}@example.com`, 'pass123', 'Leave Patient', Role.PATIENT);
+  const patient = await registerUser(`patient.leave.${Date.now()}@example.com`, 'pass123', 'Leave Patient', Role.PATIENT, true);
   const token = createSessionToken({
     userId: patient.id,
     email: patient.email,
@@ -76,17 +78,17 @@ test('Security Privacy: Patient cannot submit doctor leave', async () => {
 });
 
 test('Security Privacy: Doctor receives strictly their own schedule data', async () => {
-  const docUser1 = await registerUser(`doc1.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR);
+  const docUser1 = await registerUser(`doc1.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
   const docProfile1 = await prisma.doctorProfile.create({
-    data: { userId: docUser1.id, specialty: 'Cardiology', consultFee: 150 },
+    data: { userId: docUser1.id, specialty: 'Cardiology', consultFee: 150, isTestFixture: true },
   });
 
-  const docUser2 = await registerUser(`doc2.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR);
+  const docUser2 = await registerUser(`doc2.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
   const docProfile2 = await prisma.doctorProfile.create({
-    data: { userId: docUser2.id, specialty: 'Neurology', consultFee: 180 },
+    data: { userId: docUser2.id, specialty: 'Neurology', consultFee: 180, isTestFixture: true },
   });
 
-  const patient = await registerUser(`pat.schedule.${Date.now()}@example.com`, 'pass123', 'Schedule Patient', Role.PATIENT);
+  const patient = await registerUser(`pat.schedule.${Date.now()}@example.com`, 'pass123', 'Schedule Patient', Role.PATIENT, true);
 
   // Appointment for Doc 1
   await prisma.appointment.create({
@@ -135,7 +137,7 @@ test('Security Privacy: Doctor receives strictly their own schedule data', async
 });
 
 test('Security Authorization: Admin can access outbox and admin controls', async () => {
-  const admin = await registerUser(`admin.sec.${Date.now()}@carepulse.com`, 'pass123', 'Admin User', Role.ADMIN);
+  const admin = await registerUser(`admin.sec.${Date.now()}@carepulse.com`, 'pass123', 'Admin User', Role.ADMIN, true);
   const token = createSessionToken({
     userId: admin.id,
     email: admin.email,
@@ -184,19 +186,19 @@ test('Security Route Classification: /api/calendar/sync rejects unauthorized cal
 
 test('Security Authentication: Login failure with wrong password returns null', async () => {
   const email = `auth.test.${Date.now()}@example.com`;
-  await registerUser(email, 'correctpass123', 'Auth Test User', Role.PATIENT);
+  await registerUser(email, 'correctpass123', 'Auth Test User', Role.PATIENT, true);
 
   const failedUser = await authenticateUser(email, 'wrongpassword');
   assert.equal(failedUser, null, 'Authentication with invalid credentials must return null');
 });
 
 test('Security Role Isolation: Server overrides client-supplied patientId with session userId', async () => {
-  const patientA = await registerUser(`patientA.${Date.now()}@example.com`, 'pass123', 'Patient A', Role.PATIENT);
-  const patientB = await registerUser(`patientB.${Date.now()}@example.com`, 'pass123', 'Patient B', Role.PATIENT);
+  const patientA = await registerUser(`patientA.${Date.now()}@example.com`, 'pass123', 'Patient A', Role.PATIENT, true);
+  const patientB = await registerUser(`patientB.${Date.now()}@example.com`, 'pass123', 'Patient B', Role.PATIENT, true);
 
-  const docUser = await registerUser(`doctor.sec.${Date.now()}@example.com`, 'pass123', 'Dr. Security', Role.DOCTOR);
+  const docUser = await registerUser(`doctor.sec.${Date.now()}@example.com`, 'pass123', 'Dr. Security', Role.DOCTOR, true);
   const docProfile = await prisma.doctorProfile.create({
-    data: { userId: docUser.id, specialty: 'General', consultFee: 100 },
+    data: { userId: docUser.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
 
   const token = createSessionToken({

@@ -3,6 +3,10 @@ import { AppointmentStatus, LeaveStatus, NotificationChannel, NotificationStatus
 
 export async function getDoctorCatalog() {
   const doctors = await prisma.doctorProfile.findMany({
+    where: {
+      isPublished: true,
+      isTestFixture: false,
+    },
     include: {
       user: {
         select: {
@@ -107,14 +111,12 @@ export async function applyDoctorLeave(
   const queuedNotifications: any[] = [];
 
   for (const appt of conflictingAppointments) {
-    // Cancel appointment
     await prisma.appointment.update({
       where: { id: appt.id },
       data: { status: AppointmentStatus.CANCELLED },
     });
     cancelledAppointmentIds.push(appt.id);
 
-    // Write Outbox notification to Patient
     const payload = JSON.stringify({
       appointmentId: appt.id,
       patientName: appt.patient.name,

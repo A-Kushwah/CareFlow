@@ -26,6 +26,7 @@ test('1. Double-Booking Concurrency Prevention', async () => {
       passwordHash: 'hash',
       name: 'Test Patient 2',
       role: 'PATIENT',
+      isTestFixture: true,
     },
   });
 
@@ -110,7 +111,7 @@ test('3. Doctor Leave Conflict Exclusion', async () => {
 });
 
 test('4. Doctor Session Role Rejection on Booking Endpoint', async () => {
-  const docUser = await registerUser(`doctor.book.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Book', Role.DOCTOR);
+  const docUser = await registerUser(`doctor.book.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Book', Role.DOCTOR, true);
   const token = createSessionToken({
     userId: docUser.id,
     email: docUser.email,
@@ -139,7 +140,7 @@ test('4. Doctor Session Role Rejection on Booking Endpoint', async () => {
 
 test('5. Exact HoldId Atomic Consumption', async () => {
   const doctor = await prisma.doctorProfile.findFirst();
-  const patient = await registerUser(`atomic.patient.${Date.now()}@example.com`, 'pass123', 'Atomic Patient', Role.PATIENT);
+  const patient = await registerUser(`atomic.patient.${Date.now()}@example.com`, 'pass123', 'Atomic Patient', Role.PATIENT, true);
   assert.ok(doctor, 'Doctor must exist');
 
   const startTime = new Date(Date.now() + 86400000 * 150);

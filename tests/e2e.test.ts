@@ -19,7 +19,7 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
 
   // Step 1: Create Doctor
   const docEmail = `e2e.doctor.${Date.now()}@carepulse.com`;
-  const docUser = await registerUser(docEmail, 'doc123', 'Dr. E2E Specialist', Role.DOCTOR);
+  const docUser = await registerUser(docEmail, 'doc123', 'Dr. E2E Specialist', Role.DOCTOR, true);
   
   const doctorProfile = await prisma.doctorProfile.create({
     data: {
@@ -28,6 +28,7 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
       consultFee: 120.0,
       slotDurationMin: 30,
       bufferTimeMin: 10,
+      isTestFixture: true,
     },
   });
 
@@ -53,7 +54,7 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
 
   // Step 3: Patient Creates Slot Hold
   const patientEmail = `e2e.patient.${Date.now()}@example.com`;
-  const patient = await registerUser(patientEmail, 'pat123', 'E2E Patient', Role.PATIENT);
+  const patient = await registerUser(patientEmail, 'pat123', 'E2E Patient', Role.PATIENT, true);
 
   const hold = await createSlotHold(doctorProfile.id, patient.id, selectedSlot.startTime, selectedSlot.endTime);
   assert.ok(hold.id, 'Slot hold must be created successfully');
@@ -70,7 +71,7 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
   assert.equal(appt.status, 'CONFIRMED', 'Status must be CONFIRMED');
 
   // Step 5: Verify Concurrent Attempt on Same Slot Fails
-  const patient2 = await registerUser(`e2e.patient2.${Date.now()}@example.com`, 'pat123', 'Patient 2', Role.PATIENT);
+  const patient2 = await registerUser(`e2e.patient2.${Date.now()}@example.com`, 'pat123', 'Patient 2', Role.PATIENT, true);
   await assert.rejects(
     async () => {
       await confirmAppointmentTransaction(patient2.id, doctorProfile.id, selectedSlot.startTime, selectedSlot.endTime);
