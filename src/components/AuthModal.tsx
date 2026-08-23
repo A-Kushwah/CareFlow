@@ -83,18 +83,16 @@ export default function AuthModal({
   };
 
   const fillDemoAccount = (role: Role) => {
+    setErrorMsg('');
     if (role === Role.ADMIN) {
       setEmail('admin@carepulse.com');
       setPassword('admin123');
-      handleLogin(undefined, 'admin@carepulse.com', 'admin123');
     } else if (role === Role.DOCTOR) {
       setEmail('sarah.jenkins@carepulse.com');
       setPassword('admin123');
-      handleLogin(undefined, 'sarah.jenkins@carepulse.com', 'admin123');
     } else {
       setEmail('alex.rivera@example.com');
       setPassword('patient123');
-      handleLogin(undefined, 'alex.rivera@example.com', 'patient123');
     }
   };
 
@@ -124,11 +122,11 @@ export default function AuthModal({
           </div>
         )}
 
-        {/* Demo Quick-Fill Buttons */}
+        {/* Demo Account Fill Buttons */}
         {mode === 'login' && (
           <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-1.5">
             <span className="block text-[11px] font-semibold text-slate-700 uppercase">
-              Quick Demo Login:
+              Demo accounts — credentials filled for evaluation
             </span>
             <div className="grid grid-cols-3 gap-1.5">
               <button
