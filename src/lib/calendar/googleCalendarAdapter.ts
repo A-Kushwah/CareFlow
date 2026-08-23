@@ -67,7 +67,7 @@ export async function syncCalendarEvent(
     const eventBody: any = {
       id: ik.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 100),
       summary: payload.summary || `Consultation: ${payload.patientName || 'Patient'} with ${payload.doctorName || 'Doctor'}`,
-      description: payload.description || `CarePulse Appointment ID: ${payload.appointmentId}`,
+      description: payload.description || `CareFlow Appointment ID: ${payload.appointmentId}`,
       start: { dateTime: startIso },
       end: { dateTime: endIso },
     };

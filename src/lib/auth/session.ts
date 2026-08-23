@@ -11,7 +11,7 @@ export interface SessionPayload {
   exp: number;
 }
 
-const SECRET = process.env.JWT_SECRET || 'dev-carepulse-super-secret-key-12345';
+const SECRET = process.env.JWT_SECRET || 'dev-careflow-super-secret-key-12345';
 
 export function createSessionToken(payload: Omit<SessionPayload, 'exp'>): string {
   const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7; // 7 days
@@ -47,7 +47,7 @@ export async function getSession(req?: Request): Promise<SessionPayload | null> 
   if (req) {
     const rawCookie = req.headers.get('cookie') || req.headers.get('Cookie');
     if (rawCookie) {
-      const match = rawCookie.match(/carepulse_session=([^;]+)/);
+      const match = rawCookie.match(/careflow_session=([^;]+)/) || rawCookie.match(/carepulse_session=([^;]+)/);
       if (match && match[1]) {
         const sessionPayload = verifySessionToken(match[1]);
         if (sessionPayload) return sessionPayload;
@@ -58,7 +58,7 @@ export async function getSession(req?: Request): Promise<SessionPayload | null> 
   // 2. Otherwise read from Next.js server cookie store
   try {
     const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('carepulse_session');
+    const sessionCookie = cookieStore.get('careflow_session') || cookieStore.get('carepulse_session');
     if (!sessionCookie?.value) return null;
     return verifySessionToken(sessionCookie.value);
   } catch {

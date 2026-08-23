@@ -3,7 +3,7 @@ import { prisma } from '../prisma';
 import { Role } from '../types';
 
 export function hashPassword(password: string): string {
-  const salt = 'carepulse_salt_2026';
+  const salt = 'careflow_salt_2026';
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 

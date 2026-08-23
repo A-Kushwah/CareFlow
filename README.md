@@ -1,8 +1,8 @@
-# CarePulse — Healthcare Appointment & Follow-up Manager
+# CareFlow — Healthcare Appointment & Follow-up Manager
 
 > **GitHub Repository**: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
-CarePulse is a healthcare appointment system built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Vanilla CSS with clinical Neumorphic UI design system, SQLite for local development, and PostgreSQL for production**. It includes appointment booking, double-booking concurrency protection, admin doctor management, appointment cancellation & rescheduling workflows, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted clinical post-visit preparation using strict JSON Schema Structured Outputs**.
+CareFlow is a healthcare appointment system built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Vanilla CSS with clinical Neumorphic UI design system, SQLite for local development, and PostgreSQL for production**. It includes appointment booking, double-booking concurrency protection, admin doctor management, appointment cancellation & rescheduling workflows, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted clinical post-visit preparation using strict JSON Schema Structured Outputs**.
 
 ---
 
@@ -19,7 +19,7 @@ CarePulse is a healthcare appointment system built with **Next.js 14 (App Router
 ## System Design Summary
 
 ### 1. Architecture Overview
-CarePulse uses a modular monolith pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) live in separate modules within a single Next.js application instance. This eliminates microservice networking overhead, enables zero-cost hosting, and provides in-memory transactional guarantees.
+CareFlow uses a modular monolith pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) live in separate modules within a single Next.js application instance. This eliminates microservice networking overhead, enables zero-cost hosting, and provides in-memory transactional guarantees.
 
 ### 2. Double-Booking Concurrency Engine & Database Strategy
 - **Local Demo (SQLite)**: Double-booking is protected by transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks). The transaction queries active `Appointment` records and unexpired `SlotHold` entries for time overlap `(existingStart < requestedEnd AND existingEnd > requestedStart)`.

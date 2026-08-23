@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const prisma = new PrismaClient();
 
 function hashPassword(password) {
-  const salt = 'carepulse_salt_2026';
+  const salt = 'careflow_salt_2026';
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 
@@ -29,7 +29,7 @@ async function main() {
   // Create Admin
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@carepulse.com',
+      email: 'admin@careflow.com',
       passwordHash: adminHash,
       name: 'System Admin',
       role: 'ADMIN',
@@ -49,7 +49,7 @@ async function main() {
   // Create Doctor 1: Sarah Jenkins
   const doc1User = await prisma.user.create({
     data: {
-      email: 'sarah.jenkins@carepulse.com',
+      email: 'sarah.jenkins@careflow.com',
       passwordHash: doctorHash,
       name: 'Dr. Sarah Jenkins',
       role: 'DOCTOR',
@@ -68,7 +68,7 @@ async function main() {
   // Create Doctor 2: Marcus Vance
   const doc2User = await prisma.user.create({
     data: {
-      email: 'marcus.vance@carepulse.com',
+      email: 'marcus.vance@careflow.com',
       passwordHash: doctorHash,
       name: 'Dr. Marcus Vance',
       role: 'DOCTOR',
@@ -86,19 +86,19 @@ async function main() {
 
   const additionalDoctors = [
     {
-      email: 'elena.morris@carepulse.com',
+      email: 'elena.morris@careflow.com',
       name: 'Dr. Elena Morris',
       specialty: 'Dermatology',
       consultFee: 120.0,
     },
     {
-      email: 'james.okafor@carepulse.com',
+      email: 'james.okafor@careflow.com',
       name: 'Dr. James Okafor',
       specialty: 'Pediatrics',
       consultFee: 110.0,
     },
     {
-      email: 'maya.patel@carepulse.com',
+      email: 'maya.patel@careflow.com',
       name: 'Dr. Maya Patel',
       specialty: 'Orthopedics',
       consultFee: 160.0,

@@ -6,7 +6,7 @@ function getEncryptionKey(): Buffer {
   const secretKey =
     process.env.GOOGLE_TOKEN_ENCRYPTION_KEY ||
     process.env.JWT_SECRET ||
-    'default_dev_carepulse_token_encryption_key_32_bytes_long!!';
+    'default_dev_careflow_token_encryption_key_32_bytes_long!!';
 
   return crypto.createHash('sha256').update(secretKey).digest();
 }

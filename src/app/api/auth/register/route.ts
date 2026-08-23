@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     });
 
     response.cookies.set({
-      name: 'carepulse_session',
+      name: 'careflow_session',
       value: token,
       httpOnly: true,
       sameSite: 'lax',

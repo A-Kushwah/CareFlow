@@ -25,21 +25,21 @@ export default function Navbar({
   return (
     <header className="sticky top-0 z-40 bg-[#E0E5EC] border-b border-[#D4D9E2] shadow-[0_4px_12px_rgba(163,177,198,0.4)] px-4 sm:px-6 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* CarePulse Wordmark & Clinical Handoff Label */}
+        {/* CareFlow Wordmark & Clinical Handoff Label */}
         <div
           className="flex items-center space-x-3 cursor-pointer group focus-visible:ring-2 focus-visible:ring-[#5667D8] rounded-xl p-1"
           onClick={() => onSelectTab('patient')}
           tabIndex={0}
           role="button"
           onKeyDown={(e) => e.key === 'Enter' && onSelectTab('patient')}
-          aria-label="CarePulse Home"
+          aria-label="CareFlow Home"
         >
           <div className="w-8 h-8 rounded-xl bg-[#E0E5EC] shadow-[3px_3px_6px_rgba(163,177,198,0.6),-3px_-3px_6px_rgba(255,255,255,0.7)] flex items-center justify-center border border-[#EEF2F7]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#16866D] ring-2 ring-[#E0E5EC]" />
           </div>
           <div>
             <span className="text-lg font-extrabold tracking-tight text-[#26323B] group-hover:text-[#5667D8] transition-colors">
-              CarePulse
+              CareFlow
             </span>
             <span className="hidden sm:inline-block ml-2 text-xs font-semibold text-[#56616B] uppercase tracking-wider border-l border-[#A3B1C6]/40 pl-2">
               Clinical Workstation

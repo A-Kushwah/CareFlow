@@ -27,15 +27,15 @@ export async function sendEmailNotification(
     });
 
     const info = await transporter.sendMail({
-      from: '"CarePulse Healthcare" <no-reply@carepulse.com>',
+      from: '"CareFlow Healthcare" <no-reply@careflow.com>',
       to: recipient,
-      subject: `[CarePulse] Notification: ${template}`,
+      subject: `[CareFlow] Notification: ${template}`,
       headers: {
         'X-Idempotency-Key': ik,
       },
       html: `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #0284c7;">CarePulse Healthcare Notification</h2>
+          <h2 style="color: #0284c7;">CareFlow Healthcare Notification</h2>
           <p>Template: <strong>${template}</strong></p>
           <p style="font-size: 11px; color: #666;">Idempotency Key: <code>${ik}</code></p>
           <pre style="background: #f4f4f5; padding: 15px; border-radius: 8px;">${JSON.stringify(payload, null, 2)}</pre>

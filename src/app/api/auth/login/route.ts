@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       },
     });
 
-    response.cookies.set('carepulse_session', token, {
+    response.cookies.set('careflow_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

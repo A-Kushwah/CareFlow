@@ -3,7 +3,7 @@ import { prisma } from '../prisma';
 import { encryptToken, decryptToken } from '../security/crypto';
 
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-const STATE_SECRET = process.env.GOOGLE_OAUTH_STATE_SECRET || process.env.JWT_SECRET || 'carepulse_oauth_state_secret_key';
+const STATE_SECRET = process.env.GOOGLE_OAUTH_STATE_SECRET || process.env.JWT_SECRET || 'careflow_oauth_state_secret_key';
 
 export async function generateOAuthState(userId: string, returnUrl: string = '/settings'): Promise<string> {
   const timestamp = Date.now();

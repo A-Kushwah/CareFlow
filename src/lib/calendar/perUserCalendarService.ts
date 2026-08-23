@@ -44,7 +44,7 @@ export async function syncPerUserCalendarEvents(
 
         const otherParticipant = usersToSync.find((u) => u.userId !== participant.userId);
         const summary = `Consultation: ${appointment.patient.name} with ${appointment.doctor.user.name}`;
-        const description = `CarePulse Appointment ID: ${appointment.id}\nSymptoms: ${appointment.symptoms || 'N/A'}`;
+        const description = `CareFlow Appointment ID: ${appointment.id}\nSymptoms: ${appointment.symptoms || 'N/A'}`;
         const startIso = appointment.startTime.toISOString();
         const endIso = appointment.endTime.toISOString();
 

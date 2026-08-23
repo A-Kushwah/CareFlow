@@ -87,10 +87,10 @@ export default function AuthModal({
   const fillDemoAccount = (role: Role) => {
     setErrorMsg('');
     if (role === Role.ADMIN) {
-      setEmail('admin@carepulse.com');
+      setEmail('admin@careflow.com');
       setPassword('admin123');
     } else if (role === Role.DOCTOR) {
-      setEmail('sarah.jenkins@carepulse.com');
+      setEmail('sarah.jenkins@careflow.com');
       setPassword('admin123');
     } else {
       setEmail('alex.rivera@example.com');
@@ -105,7 +105,7 @@ export default function AuthModal({
         <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
           <div>
             <h3 className="text-base font-extrabold text-[#26323B]">
-              {mode === 'login' ? 'CarePulse Authentication' : 'Create Patient Account'}
+              {mode === 'login' ? 'CareFlow Authentication' : 'Create Patient Account'}
             </h3>
             <p className="text-xs font-semibold text-[#56616B]">
               {mode === 'login' ? 'Sign in to access workspace' : 'Register patient account'}
@@ -183,7 +183,7 @@ export default function AuthModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@carepulse.com"
+              placeholder="user@careflow.com"
               className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
             />
           </div>

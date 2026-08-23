@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CarePulse — Healthcare Appointment & Follow-up Manager',
+  title: 'CareFlow — Healthcare Appointment & Follow-up Manager',
   description: 'Healthcare appointment manager with zero double-booking concurrency guarantees, doctor leave protection, and AI visit preparation.',
 };
 
@@ -24,7 +24,7 @@ export default function RootLayout({
         </main>
 
         <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-          <p>© 2026 CarePulse Healthcare System • Modular Monolith • Non-diagnostic AI clinical assistant</p>
+          <p>© 2026 CareFlow Healthcare System • Modular Monolith • Non-diagnostic AI clinical assistant</p>
         </footer>
       </body>
     </html>

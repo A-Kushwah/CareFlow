@@ -328,7 +328,7 @@ export default function AdminOutboxConsole() {
         <section className="neu-panel p-6 space-y-6" aria-labelledby="admin-doctors-heading">
           <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
             <div>
-              <h2 id="admin-doctors-heading" className="text-base font-bold text-[#26323B]">CarePulse Clinician Directory</h2>
+              <h2 id="admin-doctors-heading" className="text-base font-bold text-[#26323B]">CareFlow Clinician Directory</h2>
               <p className="text-xs text-[#56616B]">Admin-only authorization enforced on all modification endpoints.</p>
             </div>
           </div>
@@ -523,7 +523,7 @@ export default function AdminOutboxConsole() {
               </div>
               <div>
                 <label className="block font-bold text-[#26323B] mb-1">Email Address *</label>
-                <input required type="email" value={newDoctor.email} onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })} placeholder="dr.jane@carepulse.com" className="neu-input w-full p-2.5 font-bold text-[#26323B]" />
+                <input required type="email" value={newDoctor.email} onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })} placeholder="dr.jane@careflow.com" className="neu-input w-full p-2.5 font-bold text-[#26323B]" />
               </div>
               <div>
                 <label className="block font-bold text-[#26323B] mb-1">Account Password *</label>

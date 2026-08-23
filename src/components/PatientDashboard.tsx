@@ -336,7 +336,7 @@ export default function PatientDashboard() {
           <section className="neu-panel p-6 space-y-6" aria-labelledby="upcoming-heading">
             <div>
               <h2 id="upcoming-heading" className="text-lg font-bold text-[#26323B]">1. Upcoming Appointments</h2>
-              <p className="text-xs font-medium text-[#56616B] mt-0.5">Your scheduled consultations with CarePulse specialists.</p>
+              <p className="text-xs font-medium text-[#56616B] mt-0.5">Your scheduled consultations with CareFlow specialists.</p>
             </div>
 
             {upcomingAppointments.length === 0 ? (
@@ -454,7 +454,7 @@ export default function PatientDashboard() {
                             <h3 className="text-base font-bold text-[#26323B]">{appointment.doctor?.user?.name || 'Assigned Clinician'}</h3>
                             <span className="clinical-badge-neutral">{appointment.doctor?.specialty || 'General Consultation'}</span>
                           </div>
-                          <p className="text-xs font-semibold text-[#66727D] mt-1">CarePulse Authenticated Visit Record</p>
+                          <p className="text-xs font-semibold text-[#66727D] mt-1">CareFlow Authenticated Visit Record</p>
                         </div>
                         <span className="clinical-badge-neutral">{appointment.status}</span>
                       </div>

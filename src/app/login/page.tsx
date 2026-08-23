@@ -38,7 +38,7 @@ export default function LoginPage() {
         <section className="neu-panel p-8 space-y-6">
           <div className="inline-flex items-center space-x-2 bg-[#EEF2F7] px-3 py-1 rounded-xl border border-[#D4D9E2]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#16866D]" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#16866D]">CarePulse Clinical Operations</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#16866D]">CareFlow Clinical Operations</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-[#26323B]">
             Structured clinical handoff between patients and clinicians.
