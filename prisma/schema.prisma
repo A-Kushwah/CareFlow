@@ -21,8 +21,9 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  doctorProfile       DoctorProfile?
-  patientAppointments Appointment[]  @relation("PatientAppointments")
+  doctorProfile        DoctorProfile?
+  patientAppointments  Appointment[]  @relation("PatientAppointments")
+  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
 }
 
 model DoctorProfile {
@@ -39,6 +40,7 @@ model DoctorProfile {
   workingHours WorkingHours[]
   leaves       DoctorLeave[]
   appointments Appointment[]
+  prescriptions Prescription[]
 }
 
 model WorkingHours {
@@ -76,23 +78,46 @@ model SlotHold {
 }
 
 model Appointment {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   patientId       String
-  patient         User          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  patient         User           @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId        String
-  doctor          DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor          DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   startTime       DateTime
   endTime         DateTime
-  status          String        @default("CONFIRMED") // "HELD", "CONFIRMED", "CANCELLED", "COMPLETED"
+  status          String         @default("CONFIRMED") // "HELD", "CONFIRMED", "CANCELLED", "COMPLETED"
   symptoms        String?
   aiPreSummary    String?
   aiPostSummary   String?
   consultNotes    String?
   calendarEventId String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  prescriptions   Prescription[]
 
   @@index([doctorId, startTime, endTime])
+}
+
+model Prescription {
+  id            String        @id @default(uuid())
+  appointmentId String
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId     String
+  patient       User          @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  medication    String
+  dosage        String
+  frequency     String
+  duration      String
+  instructions  String?
+  createdAt     DateTime      @default(now())
+
+  @@unique([appointmentId, medication, dosage, frequency, duration])
+  @@index([appointmentId])
+  @@index([patientId])
+  @@index([doctorId])
 }
 
 model MedicationReminder {

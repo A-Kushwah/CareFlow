@@ -10,6 +10,7 @@ export default function PatientDashboard() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [reminders, setReminders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = async () => {
@@ -46,13 +47,52 @@ export default function PatientDashboard() {
     return Array.from(grouped.values());
   }, [appointments]);
 
+  const handleRetryExplanation = async (appointment: any) => {
+    let parsedNotes: any = null;
+    if (appointment.consultNotes) {
+      try {
+        parsedNotes = JSON.parse(appointment.consultNotes);
+      } catch {
+        parsedNotes = null;
+      }
+    }
+
+    const notesText = parsedNotes?.notes || appointment.consultNotes || 'Follow-up consultation';
+    const followUp = parsedNotes?.followUpInstructions || '';
+    const prescriptions = appointment.prescriptions || parsedNotes?.prescriptions || [];
+
+    setRetryingId(appointment.id);
+    setError('');
+
+    try {
+      const res = await fetch('/api/ai/post-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: appointment.id,
+          notes: notesText,
+          followUpInstructions: followUp,
+          prescriptions,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to retry explanation');
+      await load();
+    } catch (err: any) {
+      setError(err.message || 'Retry explanation failed');
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
       <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Patient dashboard</p>
           <h1 className="text-2xl font-semibold text-slate-950">Your care record</h1>
-          <p className="text-sm text-slate-500 mt-1">Appointments, clinician prescriptions, and AI follow-up explanations in one place.</p>
+          <p className="text-sm text-slate-500 mt-1">Appointments, doctor-authored prescriptions, and AI follow-up explanations in one place.</p>
         </div>
         <button onClick={load} className="btn-secondary text-xs">Refresh record</button>
       </div>
@@ -82,7 +122,7 @@ export default function PatientDashboard() {
           <section className="bg-white border border-slate-200 rounded-lg p-6 space-y-6">
             <div>
               <h2 className="text-base font-semibold text-slate-900">Appointments and consultation results</h2>
-              <p className="text-xs text-slate-500 mt-1">Direct doctor-authored prescriptions are displayed alongside AI follow-up explanations.</p>
+              <p className="text-xs text-slate-500 mt-1">Doctor-authored prescriptions are preserved separately from AI-generated explanations.</p>
             </div>
 
             {appointments.length === 0 ? (
@@ -106,8 +146,12 @@ export default function PatientDashboard() {
                     }
                   }
 
-                  // Find medication reminders created for this specific appointment
-                  const apptReminders = reminders.filter((r) => r.appointmentId === appointment.id);
+                  const activePrescriptions = appointment.prescriptions?.length > 0
+                    ? appointment.prescriptions
+                    : (parsedNotes?.prescriptions || []);
+
+                  const isAiAvailable = summary && !summary.error;
+                  const isAiUnavailable = appointment.status === 'COMPLETED' && (!summary || summary.error);
 
                   return (
                     <article key={appointment.id} className="border border-slate-200 rounded-lg p-5 space-y-4 shadow-sm bg-white">
@@ -165,19 +209,19 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* Doctor-Authored Prescriptions Section */}
-                      {((parsedNotes?.prescriptions && parsedNotes.prescriptions.length > 0) || apptReminders.length > 0) && (
+                      {/* Doctor-Authored Prescriptions Section (Persisted in Prescription Model) */}
+                      {activePrescriptions.length > 0 && (
                         <div className="border border-emerald-200 bg-emerald-50/30 rounded-lg p-4 space-y-3">
                           <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
                             <div className="flex items-center gap-2">
                               <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950">Doctor-Authored Prescriptions</h4>
-                              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Clinician-Confirmed</span>
+                              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Clinician-Confirmed (Prescription Model)</span>
                             </div>
                             <span className="text-[11px] text-emerald-800 font-medium">Prescribed by {appointment.doctor?.user?.name || 'Doctor'}</span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {(parsedNotes?.prescriptions || apptReminders).map((p: any, idx: number) => (
+                            {activePrescriptions.map((p: any, idx: number) => (
                               <div key={idx} className="bg-white border border-emerald-200 rounded-md p-3 text-xs space-y-1.5 shadow-sm">
                                 <div className="flex items-center justify-between border-b border-slate-100 pb-1">
                                   <span className="font-bold text-emerald-950 text-sm">{p.medication}</span>
@@ -185,7 +229,7 @@ export default function PatientDashboard() {
                                 </div>
                                 <div className="text-slate-700 space-y-0.5">
                                   <p><span className="font-semibold text-slate-900">Frequency:</span> {p.frequency}</p>
-                                  <p><span className="font-semibold text-slate-900">Duration:</span> {p.duration || '7 days'}</p>
+                                  <p><span className="font-semibold text-slate-900">Duration:</span> {p.duration}</p>
                                   {p.instructions && <p className="text-slate-600 italic mt-1"><span className="font-semibold not-italic text-slate-900">Instructions:</span> {p.instructions}</p>}
                                 </div>
                               </div>
@@ -194,19 +238,17 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* AI-Generated Explanation & Patient Summary */}
-                      {summary && (
-                        <div className={`rounded-lg p-4 text-xs space-y-3 ${summary.error ? 'bg-amber-50 border border-amber-200 text-amber-900' : 'bg-emerald-50/80 border border-emerald-200 text-slate-800'}`}>
+                      {/* Visible Patient Status Badges & AI Explanation Container */}
+                      {isAiAvailable && (
+                        <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg p-4 text-xs space-y-3 text-slate-800">
                           <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-xs uppercase tracking-wide text-emerald-950">Patient-Friendly Follow-Up Explanation</h4>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${summary.error ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'}`}>
-                                {summary.error ? 'Summary Unavailable' : 'AI-Generated Explanation'}
+                              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                                AI explanation available
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-500">
-                              Status: {summary.error ? 'Clinician Prescriptions Preserved' : 'Complete'}
-                            </span>
+                            <span className="text-[10px] text-slate-500">Separately Formatted</span>
                           </div>
 
                           <p className="leading-5 text-slate-700">{summary.summary}</p>
@@ -223,6 +265,30 @@ export default function PatientDashboard() {
                           )}
 
                           <p className="text-[11px] italic text-slate-500 border-t border-emerald-200/50 pt-2">{summary.disclaimer}</p>
+                        </div>
+                      )}
+
+                      {isAiUnavailable && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs space-y-3 text-amber-950">
+                          <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-xs uppercase tracking-wide text-amber-950">Patient Summary Status</h4>
+                              <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded">
+                                AI explanation unavailable — clinician instructions are still available
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleRetryExplanation(appointment)}
+                              disabled={retryingId === appointment.id}
+                              className="btn-secondary text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+                            >
+                              {retryingId === appointment.id ? 'Retrying…' : 'Retry explanation'}
+                            </button>
+                          </div>
+
+                          <p className="text-amber-900 leading-5">
+                            Your clinician consultation notes and prescriptions above are fully preserved and confirmed. The AI-formatted explanation is temporarily unavailable.
+                          </p>
                         </div>
                       )}
 

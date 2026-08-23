@@ -55,63 +55,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden: You do not own this appointment record' }, { status: 403 });
     }
 
-    // 5. Attempt AI post-visit generation with failure fallback guard
-    let aiResult: any = null;
-    let aiError: string | undefined = undefined;
-
-    try {
-      aiResult = await invokePostVisitLLM(
-        validated.notes,
-        validated.followUpInstructions,
-        validated.prescriptions,
-        {
-          appointmentId: appointment.id,
-          doctorId: appointment.doctorId,
-          patientId: appointment.patientId,
-        }
-      );
-    } catch (err: any) {
-      console.warn('[POST-VISIT AI WARNING] AI summary generation failed:', err.message);
-      aiError = err.message || 'AI provider unavailable';
-    }
-
-    // Determine final summary object (AI summary or safe fallback)
-    const summaryData = aiResult?.summary || {
-      error: true,
-      summary: 'Patient summary unavailable — clinician-entered prescription remains available',
-      patientInstructions: [
-        validated.followUpInstructions || 'Follow clinician instructions as discussed during consultation.',
-      ],
-      medicationSummary: validated.prescriptions.map((p) => ({
-        medication: p.medication,
-        dosage: p.dosage,
-        frequency: p.frequency,
-        duration: p.duration,
-        instructions: p.instructions || 'Take as directed by physician',
-      })),
-      followUpSchedule: validated.followUpInstructions || 'As needed',
-      disclaimer: 'AI-generated consultation summary unavailable. Refer directly to clinician instructions below.',
-    };
-
-    // Format composite consult notes preserving structured inputs
+    // ----------------------------------------------------------------------
+    // STAGE 1: TRANSACTION 1 — SAVE CLINICAL NOTES, PRESCRIPTIONS & REMINDERS
+    // Unconditional database commit BEFORE any AI network invocation.
+    // ----------------------------------------------------------------------
     const consultNotesRecord = JSON.stringify({
       notes: validated.notes,
       followUpInstructions: validated.followUpInstructions,
       prescriptions: validated.prescriptions,
     });
 
-    // 6. DATABASE TRANSACTION: Update appointment & create/update medication reminders idempotently
     const updatedAppointment = await prisma.$transaction(async (tx) => {
+      // a. Update Appointment record
       const appt = await tx.appointment.update({
         where: { id: appointment.id },
         data: {
           consultNotes: consultNotesRecord,
-          aiPostSummary: JSON.stringify(summaryData),
           status: 'COMPLETED',
         },
       });
 
-      // IDEMPOTENCY GUARD: Delete pre-existing reminders for this appointment before creating fresh ones
+      // b. Persist Doctor-Authored Prescriptions in dedicated Prescription database model with unique constraint
+      await tx.prescription.deleteMany({
+        where: { appointmentId: appointment.id },
+      });
+
+      if (validated.prescriptions.length > 0) {
+        for (const med of validated.prescriptions) {
+          await tx.prescription.create({
+            data: {
+              appointmentId: appointment.id,
+              patientId: appointment.patientId,
+              doctorId: appointment.doctorId,
+              medication: med.medication,
+              dosage: med.dosage,
+              frequency: med.frequency,
+              duration: med.duration,
+              instructions: med.instructions || 'Take as directed by physician',
+            },
+          });
+        }
+      }
+
+      // c. Create MedicationReminders idempotently
       await tx.medicationReminder.deleteMany({
         where: { appointmentId: appointment.id },
       });
@@ -144,9 +130,92 @@ export async function POST(req: Request) {
       return appt;
     });
 
+    // ----------------------------------------------------------------------
+    // STAGE 2: AI GENERATION & CODE-LEVEL PRESCRIPTION VERIFICATION
+    // OpenAI failure must NEVER roll back Stage 1 clinical records!
+    // ----------------------------------------------------------------------
+    let aiResult: any = null;
+    let aiError: string | undefined = undefined;
+
+    try {
+      aiResult = await invokePostVisitLLM(
+        validated.notes,
+        validated.followUpInstructions,
+        validated.prescriptions,
+        {
+          appointmentId: appointment.id,
+          doctorId: appointment.doctorId,
+          patientId: appointment.patientId,
+        }
+      );
+    } catch (err: any) {
+      console.warn('[POST-VISIT AI WARNING] Stage 2 AI generation failed:', err.message);
+      aiError = err.message || 'AI provider unavailable';
+    }
+
+    let summaryData: any = null;
+
+    if (aiResult?.summary) {
+      const rawSummary = aiResult.summary;
+
+      // CODE-LEVEL PRESCRIPTION SAFEGUARD:
+      // Programmatically verify model output against doctor-authored prescriptions in code and correct any mismatch
+      const verifiedMeds = validated.prescriptions.map((docP) => {
+        const matchingAiMed = (rawSummary.medicationSummary || []).find(
+          (aiM: any) => aiM.medication?.toLowerCase() === docP.medication.toLowerCase()
+        );
+
+        return {
+          medication: docP.medication,
+          dosage: docP.dosage,
+          frequency: docP.frequency,
+          duration: docP.duration,
+          instructions: docP.instructions || matchingAiMed?.instructions || 'Take as directed by physician',
+        };
+      });
+
+      summaryData = {
+        error: false,
+        summary: rawSummary.summary,
+        patientInstructions: rawSummary.patientInstructions || [validated.followUpInstructions || 'Follow clinician recommendations.'],
+        medicationSummary: verifiedMeds,
+        followUpSchedule: rawSummary.followUpSchedule || validated.followUpInstructions || 'As needed',
+        disclaimer: rawSummary.disclaimer || 'AI-generated consultation summaries organize clinical instructions only. Refer directly to clinician advice.',
+      };
+    } else {
+      // Safe fallback when AI network call or provider failed
+      summaryData = {
+        error: true,
+        summary: 'AI explanation unavailable — clinician instructions are still available',
+        patientInstructions: [
+          validated.followUpInstructions || 'Follow clinician instructions as discussed during consultation.',
+        ],
+        medicationSummary: validated.prescriptions.map((p) => ({
+          medication: p.medication,
+          dosage: p.dosage,
+          frequency: p.frequency,
+          duration: p.duration,
+          instructions: p.instructions || 'Take as directed by physician',
+        })),
+        followUpSchedule: validated.followUpInstructions || 'As needed',
+        disclaimer: 'AI-generated consultation summary unavailable. Refer directly to clinician instructions below.',
+      };
+    }
+
+    // Save final verified AI summary to database in separate lightweight update
+    const finalAppointment = await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        aiPostSummary: JSON.stringify(summaryData),
+      },
+      include: {
+        prescriptions: true,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      appointment: updatedAppointment,
+      appointment: finalAppointment,
       summary: summaryData,
       provider: aiResult?.provider || 'none',
       model: aiResult?.model || 'none',

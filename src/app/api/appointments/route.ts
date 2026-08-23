@@ -39,6 +39,7 @@ export async function GET(req: Request) {
               user: { select: { id: true, name: true } },
             },
           },
+          prescriptions: true,
         },
         orderBy: { startTime: 'asc' },
       });
@@ -58,6 +59,7 @@ export async function GET(req: Request) {
         where: { doctorId: doctorProfile.id },
         include: {
           patient: { select: { id: true, name: true, email: true } },
+          prescriptions: true,
         },
         orderBy: { startTime: 'asc' },
       });
@@ -74,6 +76,7 @@ export async function GET(req: Request) {
         include: {
           patient: { select: { id: true, name: true, email: true } },
           doctor: { select: { id: true, specialty: true, consultFee: true } },
+          prescriptions: true,
         },
         orderBy: { startTime: 'asc' },
       });

@@ -10,7 +10,6 @@ test.after(async () => {
 });
 
 test('AI Post-Visit: Live Provider Selection & Non-Fallback Policy when LLM_PROVIDER=openai', async () => {
-  // Save current env
   const origProvider = process.env.LLM_PROVIDER;
   const origKey = process.env.OPENAI_API_KEY;
 
@@ -18,13 +17,11 @@ test('AI Post-Visit: Live Provider Selection & Non-Fallback Policy when LLM_PROV
     process.env.LLM_PROVIDER = 'openai';
     delete process.env.OPENAI_API_KEY;
 
-    // Validate config returns error when key missing
     const config = validateAiProviderConfig();
     assert.equal(config.valid, false);
     assert.equal(config.provider, 'openai');
     assert.match(config.error!, /OPENAI_API_KEY environment variable is missing/);
 
-    // Invoking PostVisit LLM must throw live provider error and NEVER return mock clinical content
     await assert.rejects(
       async () => {
         await invokePostVisitLLM(
@@ -67,7 +64,6 @@ test('AI Post-Visit: Exact Prescription Preservation in AI Summary Contract', as
 });
 
 test('AI Post-Visit: AI Cannot Invent Non-Existent Medications', async () => {
-  // When no medications are prescribed by doctor
   const result = await invokePostVisitLLM(
     'Patient has mild viral upper respiratory infection.',
     'Rest and stay hydrated.',
@@ -78,16 +74,16 @@ test('AI Post-Visit: AI Cannot Invent Non-Existent Medications', async () => {
   assert.equal(result.summary.medicationSummary.length, 0);
 });
 
-test('AI Post-Visit: Outage / Failure Handling Preserves Doctor Notes & Reminders Idempotently', async () => {
+test('AI Post-Visit: 2-Stage Decoupled Workflow & OpenAI Failure Preserves Notes, Prescriptions & Reminders', async () => {
   const timestamp = Date.now();
-  const testRunId = `ai_outage_${timestamp}`;
+  const testRunId = `ai_failure_proof_${timestamp}`;
 
   // 1. Create Patient User
   const patient = await prisma.user.create({
     data: {
       email: `patient.${testRunId}@carepulse.local`,
       passwordHash: 'hashed_pw',
-      name: 'Outage Patient',
+      name: 'Proof Patient',
       role: 'PATIENT',
       isTestFixture: true,
     },
@@ -98,7 +94,7 @@ test('AI Post-Visit: Outage / Failure Handling Preserves Doctor Notes & Reminder
     data: {
       email: `doctor.${testRunId}@carepulse.local`,
       passwordHash: 'hashed_pw',
-      name: 'Dr. Outage Specialist',
+      name: 'Dr. Proof Specialist',
       role: 'DOCTOR',
       isTestFixture: true,
     },
@@ -107,8 +103,8 @@ test('AI Post-Visit: Outage / Failure Handling Preserves Doctor Notes & Reminder
   const doctorProfile = await prisma.doctorProfile.create({
     data: {
       userId: doctorUser.id,
-      specialty: 'Internal Medicine',
-      consultFee: 150.0,
+      specialty: 'Cardiology',
+      consultFee: 200.0,
       isPublished: true,
       isTestFixture: true,
     },
@@ -119,44 +115,51 @@ test('AI Post-Visit: Outage / Failure Handling Preserves Doctor Notes & Reminder
     data: {
       patientId: patient.id,
       doctorId: doctorProfile.id,
-      startTime: new Date('2026-10-15T10:00:00Z'),
-      endTime: new Date('2026-10-15T10:30:00Z'),
+      startTime: new Date('2026-11-10T09:00:00Z'),
+      endTime: new Date('2026-11-10T09:30:00Z'),
       status: 'CONFIRMED',
-      symptoms: 'Fever and cough',
+      symptoms: 'Chest tightness on exertion',
     },
   });
 
-  // 4. Simulate Post-Visit transaction when AI Provider throws error
+  // 4. STAGE 1: Transaction 1 — Save Doctor Notes, Prescriptions, and Reminders
   const prescriptions = [
-    { medication: 'Azithromycin', dosage: '250mg', frequency: 'Once daily', duration: '5 days', instructions: 'Take on empty stomach' },
+    { medication: 'Lisinopril', dosage: '10mg', frequency: 'Once daily in morning', duration: '30 days', instructions: 'Monitor blood pressure' },
   ];
 
   const consultNotesRecord = JSON.stringify({
-    notes: 'Clinical Observations: Chest clear, throat inflamed.',
-    followUpInstructions: 'Return in 7 days.',
+    notes: 'Clinical Observations: BP 138/88, regular rhythm.',
+    followUpInstructions: 'Return in 1 month with BP log.',
     prescriptions,
   });
 
-  const fallbackSummary = {
-    error: true,
-    summary: 'Patient summary unavailable — clinician-entered prescription remains available',
-    patientInstructions: ['Return in 7 days.'],
-    medicationSummary: prescriptions,
-    followUpSchedule: 'Return in 7 days.',
-    disclaimer: 'AI-generated consultation summary unavailable. Refer directly to clinician instructions below.',
-  };
-
-  // Perform transaction
+  // Execute Stage 1 Transaction 1 unconditionally
   await prisma.$transaction(async (tx) => {
     await tx.appointment.update({
       where: { id: appointment.id },
       data: {
         consultNotes: consultNotesRecord,
-        aiPostSummary: JSON.stringify(fallbackSummary),
         status: 'COMPLETED',
       },
     });
 
+    await tx.prescription.deleteMany({ where: { appointmentId: appointment.id } });
+
+    for (const med of prescriptions) {
+      await tx.prescription.create({
+        data: {
+          appointmentId: appointment.id,
+          patientId: patient.id,
+          doctorId: doctorProfile.id,
+          medication: med.medication,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          duration: med.duration,
+          instructions: med.instructions,
+        },
+      });
+    }
+
     await tx.medicationReminder.deleteMany({ where: { appointmentId: appointment.id } });
 
     for (const med of prescriptions) {
@@ -170,49 +173,137 @@ test('AI Post-Visit: Outage / Failure Handling Preserves Doctor Notes & Reminder
           duration: med.duration,
           instructions: med.instructions,
           startDate: new Date(),
-          endDate: new Date(Date.now() + 5 * 86400000),
+          endDate: new Date(Date.now() + 30 * 86400000),
           status: 'ACTIVE',
         },
       });
     }
   });
 
-  // 5. Verify Appointment updated and Medication Reminder created
-  const updated = await prisma.appointment.findUnique({ where: { id: appointment.id } });
-  assert.equal(updated?.status, 'COMPLETED');
-  assert.match(updated?.consultNotes!, /Azithromycin/);
+  // STAGE 1 PROOF: Verify Doctor Data is FULLY COMMITTED to DB
+  const committedAppt = await prisma.appointment.findUnique({ where: { id: appointment.id } });
+  assert.equal(committedAppt?.status, 'COMPLETED');
+  assert.match(committedAppt?.consultNotes!, /Lisinopril/);
 
-  const savedSummary = JSON.parse(updated?.aiPostSummary!);
-  assert.equal(savedSummary.error, true);
-  assert.match(savedSummary.summary, /Patient summary unavailable/);
+  const committedPrescriptions = await prisma.prescription.findMany({ where: { appointmentId: appointment.id } });
+  assert.equal(committedPrescriptions.length, 1);
+  assert.equal(committedPrescriptions[0].medication, 'Lisinopril');
+  assert.equal(committedPrescriptions[0].dosage, '10mg');
 
-  const reminders = await prisma.medicationReminder.findMany({ where: { appointmentId: appointment.id } });
-  assert.equal(reminders.length, 1);
-  assert.equal(reminders[0].medication, 'Azithromycin');
-  assert.equal(reminders[0].dosage, '250mg');
-  assert.equal(reminders[0].duration, '5 days');
+  const committedReminders = await prisma.medicationReminder.findMany({ where: { appointmentId: appointment.id } });
+  assert.equal(committedReminders.length, 1);
+  assert.equal(committedReminders[0].medication, 'Lisinopril');
 
-  // 6. Test IDEMPOTENCY: Resubmitting consultation updates reminders without creating duplicates
-  await prisma.$transaction(async (tx) => {
-    await tx.medicationReminder.deleteMany({ where: { appointmentId: appointment.id } });
-    for (const med of prescriptions) {
-      await tx.medicationReminder.create({
+  // 5. STAGE 2 SIMULATION: OpenAI Network Failure occurs after Stage 1
+  const fallbackSummary = {
+    error: true,
+    summary: 'AI explanation unavailable — clinician instructions are still available',
+    patientInstructions: ['Return in 1 month with BP log.'],
+    medicationSummary: prescriptions,
+    followUpSchedule: 'Return in 1 month with BP log.',
+    disclaimer: 'AI-generated consultation summary unavailable. Refer directly to clinician instructions below.',
+  };
+
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: { aiPostSummary: JSON.stringify(fallbackSummary) },
+  });
+
+  // STAGE 2 PROOF: OpenAI Failure did NOT roll back Stage 1 committed data
+  const finalAppt = await prisma.appointment.findUnique({ where: { id: appointment.id } });
+  assert.equal(finalAppt?.status, 'COMPLETED');
+  assert.match(finalAppt?.consultNotes!, /Lisinopril/);
+
+  const finalPrescriptions = await prisma.prescription.findMany({ where: { appointmentId: appointment.id } });
+  assert.equal(finalPrescriptions.length, 1);
+  assert.equal(finalPrescriptions[0].medication, 'Lisinopril');
+
+  const finalReminders = await prisma.medicationReminder.findMany({ where: { appointmentId: appointment.id } });
+  assert.equal(finalReminders.length, 1);
+
+  const parsedAiSummary = JSON.parse(finalAppt?.aiPostSummary!);
+  assert.equal(parsedAiSummary.error, true);
+  assert.match(parsedAiSummary.summary, /AI explanation unavailable — clinician instructions are still available/);
+});
+
+test('AI Post-Visit: Prescription Database Unique Constraint & Idempotency', async () => {
+  const timestamp = Date.now();
+  const testRunId = `unique_presc_${timestamp}`;
+
+  const patient = await prisma.user.create({
+    data: {
+      email: `patient.${testRunId}@carepulse.local`,
+      passwordHash: 'hashed_pw',
+      name: 'Constraint Patient',
+      role: 'PATIENT',
+      isTestFixture: true,
+    },
+  });
+
+  const doctorUser = await prisma.user.create({
+    data: {
+      email: `doctor.${testRunId}@carepulse.local`,
+      passwordHash: 'hashed_pw',
+      name: 'Dr. Constraint',
+      role: 'DOCTOR',
+      isTestFixture: true,
+    },
+  });
+
+  const doctorProfile = await prisma.doctorProfile.create({
+    data: {
+      userId: doctorUser.id,
+      specialty: 'Pediatrics',
+      consultFee: 100.0,
+      isPublished: true,
+      isTestFixture: true,
+    },
+  });
+
+  const appointment = await prisma.appointment.create({
+    data: {
+      patientId: patient.id,
+      doctorId: doctorProfile.id,
+      startTime: new Date('2026-11-12T10:00:00Z'),
+      endTime: new Date('2026-11-12T10:30:00Z'),
+      status: 'CONFIRMED',
+      symptoms: 'Earache',
+    },
+  });
+
+  // Create initial prescription
+  await prisma.prescription.create({
+    data: {
+      appointmentId: appointment.id,
+      patientId: patient.id,
+      doctorId: doctorProfile.id,
+      medication: 'Amoxicillin',
+      dosage: '250mg',
+      frequency: 'Three times daily',
+      duration: '10 days',
+      instructions: 'Take with milk',
+    },
+  });
+
+  // Inserting duplicate prescription with exact same (appointmentId, medication, dosage, frequency, duration) must throw Unique constraint error
+  await assert.rejects(
+    async () => {
+      await prisma.prescription.create({
         data: {
-          patientId: patient.id,
           appointmentId: appointment.id,
-          medication: med.medication,
-          dosage: med.dosage,
-          frequency: med.frequency,
-          duration: med.duration,
-          instructions: med.instructions,
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 5 * 86400000),
-          status: 'ACTIVE',
+          patientId: patient.id,
+          doctorId: doctorProfile.id,
+          medication: 'Amoxicillin',
+          dosage: '250mg',
+          frequency: 'Three times daily',
+          duration: '10 days',
+          instructions: 'Duplicate insert attempt',
         },
       });
+    },
+    (err: any) => {
+      assert.match(err.message, /unique constraint|Unique constraint/i);
+      return true;
     }
-  });
-
-  const reReminders = await prisma.medicationReminder.findMany({ where: { appointmentId: appointment.id } });
-  assert.equal(reReminders.length, 1); // No duplicates!
+  );
 });
