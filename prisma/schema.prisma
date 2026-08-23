@@ -78,23 +78,24 @@ model SlotHold {
 }
 
 model Appointment {
-  id              String         @id @default(uuid())
-  patientId       String
-  patient         User           @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId        String
-  doctor          DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  startTime       DateTime
-  endTime         DateTime
-  status          String         @default("CONFIRMED") // "HELD", "CONFIRMED", "CANCELLED", "COMPLETED"
-  symptoms        String?
-  aiPreSummary    String?
-  aiPostSummary   String?
-  consultNotes    String?
-  calendarEventId String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String         @id @default(uuid())
+  patientId          String
+  patient            User           @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId           String
+  doctor             DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startTime          DateTime
+  endTime            DateTime
+  status             String         @default("CONFIRMED") // "HELD", "CONFIRMED", "CANCELLED", "COMPLETED"
+  symptoms           String?
+  aiPreSummary       String?
+  aiPostSummary      String?
+  consultNotes       String?
+  cancellationReason String?
+  calendarEventId    String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
-  prescriptions   Prescription[]
+  prescriptions      Prescription[]
 
   @@index([doctorId, startTime, endTime])
 }

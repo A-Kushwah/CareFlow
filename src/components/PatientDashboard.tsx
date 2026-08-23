@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AvailableSlot } from '@/lib/types';
 
 function formatDayOfWeek(value: string) {
   return new Date(value).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
@@ -18,6 +19,20 @@ export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Cancellation Modal State
+  const [cancellingAppt, setCancellingAppt] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState('Schedule conflict');
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  // Reschedule Modal State
+  const [reschedulingAppt, setReschedulingAppt] = useState<any | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleSlots, setRescheduleSlots] = useState<AvailableSlot[]>([]);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<AvailableSlot | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -60,6 +75,70 @@ export default function PatientDashboard() {
   const completedAppointments = useMemo(() => {
     return appointments.filter((a) => a.status === 'COMPLETED' || a.status === 'CANCELLED');
   }, [appointments]);
+
+  // Load available slots when reschedule date changes
+  useEffect(() => {
+    if (!reschedulingAppt || !rescheduleDate) return;
+    setRescheduleLoading(true);
+    setSelectedRescheduleSlot(null);
+
+    fetch(`/api/doctors/slots?doctorId=${reschedulingAppt.doctorId}&date=${rescheduleDate}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRescheduleSlots(data.slots || []);
+      })
+      .finally(() => setRescheduleLoading(false));
+  }, [reschedulingAppt, rescheduleDate]);
+
+  const handleCancelSubmit = async () => {
+    if (!cancellingAppt) return;
+    setCancelBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/appointments/${cancellingAppt.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel appointment');
+      setSuccessMsg('Appointment cancelled successfully. Notifications queued.');
+      setCancellingAppt(null);
+      await load();
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!reschedulingAppt || !selectedRescheduleSlot) return;
+    setRescheduleBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/appointments/${reschedulingAppt.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newStartTime: selectedRescheduleSlot.startTime,
+          newEndTime: selectedRescheduleSlot.endTime,
+          reason: 'Patient requested reschedule',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reschedule appointment');
+      setSuccessMsg('Appointment rescheduled successfully. Notifications queued.');
+      setReschedulingAppt(null);
+      await load();
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setRescheduleBusy(false);
+    }
+  };
 
   const handleRetryExplanation = async (appointment: any) => {
     let parsedNotes: any = null;
@@ -119,6 +198,12 @@ export default function PatientDashboard() {
       {error && (
         <div className="p-4 bg-[#FEEFEE] border-l-4 border-[#B42318] text-xs font-bold text-[#B42318] rounded-r-xl">
           {error}
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-4 bg-[#E6F4F1] border-l-4 border-[#16866D] text-xs font-bold text-[#16866D] rounded-r-xl">
+          {successMsg}
         </div>
       )}
 
@@ -187,9 +272,26 @@ export default function PatientDashboard() {
                         )}
                       </div>
 
-                      <span className={`clinical-badge-${appointment.status === 'CONFIRMED' ? 'success' : 'warning'}`}>
-                        {appointment.status}
-                      </span>
+                      <div className="flex flex-col gap-2 min-w-[150px]">
+                        <span className={`clinical-badge-${appointment.status === 'CONFIRMED' ? 'success' : 'warning'} text-center`}>
+                          {appointment.status}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setReschedulingAppt(appointment);
+                            setRescheduleDate(new Date(appointment.startTime).toISOString().slice(0, 10));
+                          }}
+                          className="neu-btn-secondary text-xs min-h-[40px] justify-center"
+                        >
+                          Reschedule
+                        </button>
+                        <button
+                          onClick={() => setCancellingAppt(appointment)}
+                          className="neu-btn-secondary text-xs min-h-[40px] justify-center text-[#B42318] border-[#FECDCA]"
+                        >
+                          Cancel Visit
+                        </button>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -421,6 +523,122 @@ export default function PatientDashboard() {
             </div>
           </section>
         </>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancellingAppt && (
+        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center">
+          <div className="neu-panel bg-[#E0E5EC] max-w-md w-full p-6 space-y-5 border border-[#FECDCA]">
+            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-[#B42318]">Confirm Appointment Cancellation</h3>
+                <p className="text-xs font-semibold text-[#56616B] mt-0.5">
+                  {cancellingAppt.doctor?.user?.name} · {formatDayOfWeek(cancellingAppt.startTime)}
+                </p>
+              </div>
+              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+            </div>
+
+            <div className="text-xs font-medium text-[#26323B] space-y-2">
+              <p>Are you sure you want to cancel this appointment?</p>
+              <p className="text-[#56616B]">Cancelling will release your reserved slot. Email notifications and Google Calendar deletion events will be queued for both you and your doctor.</p>
+            </div>
+
+            <div>
+              <label htmlFor="cancel-reason" className="block text-xs font-bold text-[#26323B] mb-1">Reason for Cancellation</label>
+              <input
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Schedule conflict, feeling better"
+                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
+              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Keep Appointment</button>
+              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="neu-btn-primary text-xs bg-[#B42318] hover:bg-[#911C13] min-h-[44px]">
+                {cancelBusy ? 'Cancelling…' : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {reschedulingAppt && (
+        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center overflow-y-auto">
+          <div className="neu-panel bg-[#E0E5EC] max-w-xl w-full p-6 space-y-5 border border-[#EEF2F7] my-8">
+            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-[#26323B]">Reschedule Appointment Slot</h3>
+                <p className="text-xs font-semibold text-[#5667D8] mt-0.5">
+                  With {reschedulingAppt.doctor?.user?.name || 'Specialist'} ({reschedulingAppt.doctor?.specialty})
+                </p>
+              </div>
+              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+            </div>
+
+            <div className="neu-inset p-3.5 text-xs font-semibold text-[#26323B] space-y-1">
+              <span className="block text-[10px] font-bold text-[#66727D] uppercase tracking-wider">Current Appointment Slot:</span>
+              <p>{formatDayOfWeek(reschedulingAppt.startTime)} at {formatTimeRange(reschedulingAppt.startTime, reschedulingAppt.endTime)}</p>
+            </div>
+
+            <div>
+              <label htmlFor="reschedule-date" className="block text-xs font-bold text-[#26323B] mb-1">Select New Date:</label>
+              <input
+                id="reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <span className="block text-xs font-bold text-[#26323B]">Select New Time Slot:</span>
+              {rescheduleLoading ? (
+                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">Calculating available slots…</div>
+              ) : rescheduleSlots.length === 0 ? (
+                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">No available slots found for this date.</div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                  {rescheduleSlots.map((slot, idx) => {
+                    const isSelected = selectedRescheduleSlot?.startTime === slot.startTime;
+                    const timeStr = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return (
+                      <button
+                        key={idx}
+                        disabled={!slot.isAvailable}
+                        onClick={() => setSelectedRescheduleSlot(slot)}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
+                          isSelected
+                            ? 'neu-btn-active bg-[#5667D8] text-white'
+                            : slot.isAvailable
+                            ? 'neu-btn-secondary'
+                            : 'bg-[#D4D9E2]/50 text-[#66727D] cursor-not-allowed line-through shadow-none'
+                        }`}
+                      >
+                        {timeStr}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
+              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Cancel</button>
+              <button
+                onClick={handleRescheduleSubmit}
+                disabled={!selectedRescheduleSlot || rescheduleBusy}
+                className="neu-btn-primary text-xs min-h-[44px]"
+              >
+                {rescheduleBusy ? 'Confirming Reschedule…' : 'Confirm New Appointment Time'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

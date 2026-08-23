@@ -169,8 +169,8 @@ export async function confirmAppointmentTransaction(
       });
     }
 
-    // 8. Enqueue Email Outbox Notification
-    const emailPayload = JSON.stringify({
+    // 8a. Enqueue Patient Confirmation Email
+    const patientEmailPayload = JSON.stringify({
       appointmentId: appointment.id,
       patientName: patient.name,
       patientEmail: patient.email,
@@ -181,11 +181,35 @@ export async function confirmAppointmentTransaction(
 
     await tx.notificationLog.create({
       data: {
-        idempotencyKey: `appt_email_confirmed_${appointment.id}`,
+        idempotencyKey: `appointment_confirmed_patient_${appointment.id}`,
         recipient: patient.email,
         channel: NotificationChannel.EMAIL,
-        template: 'APPOINTMENT_CONFIRMED',
-        payload: emailPayload,
+        template: 'APPOINTMENT_CONFIRMED_PATIENT',
+        payload: patientEmailPayload,
+        status: NotificationStatus.QUEUED,
+        attempts: 0,
+        nextRetryAt: new Date(),
+      },
+    });
+
+    // 8b. Enqueue Doctor Confirmation Email
+    const doctorEmailPayload = JSON.stringify({
+      appointmentId: appointment.id,
+      patientName: patient.name,
+      patientEmail: patient.email,
+      doctorName: doctor.user.name,
+      doctorEmail: doctor.user.email,
+      startTime: appointment.startTime.toISOString(),
+      symptoms: symptoms || 'N/A',
+    });
+
+    await tx.notificationLog.create({
+      data: {
+        idempotencyKey: `appointment_confirmed_doctor_${appointment.id}`,
+        recipient: doctor.user.email,
+        channel: NotificationChannel.EMAIL,
+        template: 'APPOINTMENT_CONFIRMED_DOCTOR',
+        payload: doctorEmailPayload,
         status: NotificationStatus.QUEUED,
         attempts: 0,
         nextRetryAt: new Date(),
@@ -206,7 +230,7 @@ export async function confirmAppointmentTransaction(
 
     await tx.notificationLog.create({
       data: {
-        idempotencyKey: `appt_calendar_create_${appointment.id}`,
+        idempotencyKey: `appointment_calendar_create_${appointment.id}`,
         recipient: doctor.user.email,
         channel: NotificationChannel.CALENDAR,
         template: 'CALENDAR_CREATE_EVENT',

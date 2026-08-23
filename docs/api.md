@@ -16,10 +16,17 @@ CarePulse provides a RESTful API layer built with Next.js App Router route handl
 | `/api/doctors/slots` | `GET` | `PUBLIC` | Open slot availability calculation by doctor and date. |
 | `/api/doctors/[id]` | `GET` | `PUBLIC` | Open doctor profile detail retrieval. |
 | `/api/doctors/leave` | `POST` | `DOCTOR_ONLY` / `ADMIN_ONLY` | Doctors restricted to their own doctor profile ID. |
+| `/api/admin/doctors` | `GET`, `POST` | `ADMIN_ONLY` | Admin role required. Create & list doctor profiles with working hours. |
+| `/api/admin/doctors/[id]` | `PATCH`, `DELETE` | `ADMIN_ONLY` | Admin role required. Edit profile, toggle publish status, archive. |
+| `/api/admin/doctors/[id]/working-hours` | `PUT` | `ADMIN_ONLY` | Admin role required. Replace doctor working hours schedule. |
+| `/api/admin/doctors/[id]/leave` | `POST` | `ADMIN_ONLY` | Admin role required. Submit doctor leave & cancel conflicts. |
 | `/api/appointments` | `GET`, `POST` | `PATIENT_ONLY` / `DOCTOR_ONLY` / `ADMIN_ONLY` | Patients restricted to `patientId === session.userId`. |
+| `/api/appointments/[id]/cancel` | `POST` | `PATIENT_ONLY` / `DOCTOR_ONLY` / `ADMIN_ONLY` | Cancel appointment, save reason, enqueue dual emails & calendar delete. |
+| `/api/appointments/[id]/reschedule` | `POST` | `PATIENT_ONLY` / `DOCTOR_ONLY` / `ADMIN_ONLY` | Reschedule appointment slot with leave, working hours & overlap checks. |
 | `/api/appointments/hold` | `POST` | `PATIENT_ONLY` / `DOCTOR_ONLY` / `ADMIN_ONLY` | Authenticated session required to create 5-min slot hold. |
 | `/api/ai/pre-visit` | `POST` | `PATIENT_ONLY` / `DOCTOR_ONLY` / `ADMIN_ONLY` | Authenticated session required for symptom intake triage. |
 | `/api/ai/post-visit` | `POST` | `DOCTOR_ONLY` / `ADMIN_ONLY` | Clinical staff session required for post-visit summary generation. |
+| `/api/patients/[id]/history` | `GET` | `DOCTOR_ONLY` / `ADMIN_ONLY` | Requires active appointment relationship between doctor & patient. |
 | `/api/calendar/sync` | `POST` | `ADMIN_ONLY` / `INTERNAL_WORKER` | Admin session or `Bearer ${CRON_SECRET}` header required. |
 | `/api/notifications/logs` | `GET` | `ADMIN_ONLY` | Admin role required. |
 | `/api/notifications/process` | `POST` | `ADMIN_ONLY` / `INTERNAL_WORKER` | Admin session or `Bearer ${CRON_SECRET}` header required. |
@@ -32,123 +39,43 @@ CarePulse provides a RESTful API layer built with Next.js App Router route handl
 
 ## 2. Key Endpoint Details
 
-### Authentication: `/api/auth/register` (`POST`)
+### Admin Doctor Creation: `/api/admin/doctors` (`POST`)
+- **Headers**: Signed admin session cookie (`carepulse_session`).
 - **Payload**:
   ```json
   {
-    "name": "Alex Rivera",
-    "email": "alex.rivera@example.com",
-    "password": "password123"
+    "name": "Dr. Sarah Jenkins",
+    "email": "sarah.jenkins@carepulse.com",
+    "password": "doctorPassword123",
+    "specialty": "Cardiology",
+    "consultFee": 150,
+    "slotDurationMin": 30,
+    "bufferTimeMin": 10,
+    "isPublished": true
   }
   ```
-- **Behavior**: Ignores any client-supplied `role` parameter and hardcodes `role: "PATIENT"`.
-- **Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "user": {
-      "id": "user_id_123",
-      "email": "alex.rivera@example.com",
-      "role": "PATIENT",
-      "name": "Alex Rivera"
-    }
-  }
-  ```
+- **Behavior**: Atomically creates User with `ROLE_DOCTOR`, DoctorProfile, and default working hours inside a transaction.
 
 ---
 
-### Slot Hold: `/api/appointments/hold` (`POST`)
+### Appointment Cancellation: `/api/appointments/[id]/cancel` (`POST`)
 - **Payload**:
   ```json
   {
-    "doctorId": "doc_profile_id_1",
-    "startTime": "2026-09-14T09:00:00.000Z",
-    "endTime": "2026-09-14T09:30:00.000Z"
+    "reason": "Schedule conflict with business trip"
   }
   ```
-- **Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "hold": {
-      "id": "hold_id_abc",
-      "doctorId": "doc_profile_id_1",
-      "patientId": "user_id_123",
-      "expiresAt": "2026-09-14T09:05:00.000Z"
-    }
-  }
-  ```
-- **Error (409 Conflict)**:
-  ```json
-  {
-    "error": "This slot was reserved by another patient"
-  }
-  ```
+- **Behavior**: Validates ownership, updates status to `CANCELLED`, enqueues role-specific patient and doctor cancellation emails, and enqueues Google Calendar deletion event idempotently.
 
 ---
 
-### Appointment Confirmation: `/api/appointments` (`POST`)
+### Appointment Rescheduling: `/api/appointments/[id]/reschedule` (`POST`)
 - **Payload**:
   ```json
   {
-    "holdId": "hold_id_abc",
-    "patientId": "user_id_123",
-    "symptoms": "Persistent dry cough and mild headache for 3 days"
+    "newStartTime": "2026-09-28T14:00:00.000Z",
+    "newEndTime": "2026-09-28T14:30:00.000Z",
+    "reason": "Requested earlier morning slot"
   }
   ```
-- **Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "appointment": {
-      "id": "appt_id_999",
-      "status": "CONFIRMED",
-      "startTime": "2026-09-14T09:00:00.000Z",
-      "endTime": "2026-09-14T09:30:00.000Z"
-    }
-  }
-  ```
-
----
-
-### AI Pre-Visit Triage: `/api/ai/pre-visit` (`POST`)
-- **Payload**:
-  ```json
-  {
-    "symptoms": "Intermittent chest tightness and shortness of breath"
-  }
-  ```
-- **Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "summary": {
-      "urgencyLevel": "High",
-      "chiefComplaint": "Cardiovascular / Respiratory Discomfort",
-      "suggestedQuestions": [
-        "When did the chest pressure start?",
-        "Do you feel pain radiating to your arm or back?"
-      ],
-      "summary": "Prompt: Analyse these symptoms...",
-      "disclaimer": "IMPORTANT MEDICAL NOTICE: This AI-generated summary is for clinical organization assistance only..."
-    }
-  }
-  ```
-
----
-
-### Outbox Processing: `/api/notifications/process` (`POST`)
-- **Headers**: `Authorization: Bearer <CRON_SECRET>` or active `ADMIN` session cookie.
-- **Response (200 OK)**:
-  ```json
-  {
-    "success": true,
-    "result": {
-      "processedCount": 3,
-      "successes": 3,
-      "failures": 0,
-      "dlqCount": 0,
-      "preemptedCount": 0
-    }
-  }
-  ```
+- **Behavior**: Validates doctor working hours, doctor leave, and slot overlap. Updates appointment timing and enqueues patient email, doctor email, and Google Calendar update event idempotently.

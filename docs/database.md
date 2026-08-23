@@ -11,11 +11,14 @@ erDiagram
     User ||--o| DoctorProfile : "has profile"
     User ||--o{ SlotHold : "holds"
     User ||--o{ Appointment : "books as patient"
+    User ||--o{ Prescription : "prescribed for"
     User ||--o{ MedicationReminder : "receives"
     DoctorProfile ||--o{ WorkingHours : "defines"
     DoctorProfile ||--o{ DoctorLeave : "submits"
     DoctorProfile ||--o{ SlotHold : "targets"
     DoctorProfile ||--o{ Appointment : "conducts"
+    DoctorProfile ||--o{ Prescription : "authors"
+    Appointment ||--o{ Prescription : "contains"
     Appointment ||--o{ MedicationReminder : "originates"
 
     User {
@@ -75,7 +78,20 @@ erDiagram
         string symptoms
         string aiPreSummary
         string consultNotes
+        string cancellationReason
         string aiPostSummary
+    }
+
+    Prescription {
+        string id PK
+        string appointmentId FK
+        string patientId FK
+        string doctorId FK
+        string medication
+        string dosage
+        string frequency
+        string duration
+        string instructions
     }
 
     NotificationLog {
@@ -164,7 +180,20 @@ erDiagram
 - **`symptoms`**: String (Text)
 - **`aiPreSummary`**: String (JSON stringified)
 - **`consultNotes`**: String (Text)
+- **`cancellationReason`**: String (Text, Nullable)
 - **`aiPostSummary`**: String (JSON stringified)
+
+### `Prescription`
+- **`id`**: String (UUID, Primary Key)
+- **`appointmentId`**: String (Foreign Key -> `Appointment.id`)
+- **`patientId`**: String (Foreign Key -> `User.id`)
+- **`doctorId`**: String (Foreign Key -> `DoctorProfile.id`)
+- **`medication`**: String
+- **`dosage`**: String
+- **`frequency`**: String
+- **`duration`**: String
+- **`instructions`**: String (Nullable)
+- **Unique Constraint**: `@@unique([appointmentId, medication, dosage, frequency, duration])`
 
 ### `NotificationLog` (Outbox Queue)
 - **`id`**: String (UUID, Primary Key)

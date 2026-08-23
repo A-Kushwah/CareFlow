@@ -2,7 +2,7 @@
 
 > **GitHub Repository**: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
-CarePulse is a healthcare appointment system built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Tailwind CSS, SQLite for local development, and PostgreSQL for production**. It includes appointment booking, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted clinical post-visit preparation using strict JSON Schema Structured Outputs**.
+CarePulse is a healthcare appointment system built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Vanilla CSS with clinical Neumorphic UI design system, SQLite for local development, and PostgreSQL for production**. It includes appointment booking, double-booking concurrency protection, admin doctor management, appointment cancellation & rescheduling workflows, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted clinical post-visit preparation using strict JSON Schema Structured Outputs**.
 
 ---
 
@@ -11,12 +11,12 @@ CarePulse is a healthcare appointment system built with **Next.js 14 (App Router
 - 📐 **[System Architecture](docs/architecture.md)** — Modular monolith pattern, double-booking protocol, outbox engine, and AI safeguards.
 - 🔌 **[API Reference](docs/api.md)** — REST endpoints, request/response schemas, status codes, and role authorization matrix.
 - 🗄️ **[Database Strategy](docs/database.md)** — Schema models, ER diagram, indexes, and PostgreSQL GiST exclusion constraint.
-- 🧪 **[Quality & Testing](docs/testing.md)** — Automated test suite commands, scenario coverage, and execution results.
+- 🧪 **[Quality & Verification Matrix](docs/verification-matrix.md)** — Comprehensive requirement breakdown, automated test suite, and build verification.
 - 🚀 **[Deployment Guide](docs/deployment.md)** — Step-by-step local setup, environment variables, PostgreSQL migration, and production deployment.
 
 ---
 
-## System Design Summary (Under 800 Words)
+## System Design Summary
 
 ### 1. Architecture Overview
 CarePulse uses a modular monolith pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) live in separate modules within a single Next.js application instance. This eliminates microservice networking overhead, enables zero-cost hosting, and provides in-memory transactional guarantees.
@@ -31,15 +31,15 @@ CarePulse uses a modular monolith pattern. Domain modules (`booking`, `doctors`,
   ```
 
 ### 3. Doctor-Authored Prescriptions & AI Post-Visit Workflow
-- **Clinician Authority**: Prescriptions (medication, dosage, frequency, duration, instructions) are authored exclusively by the doctor. The AI model is strictly prohibited from inventing, altering, or omitting any medication.
+- **Clinician Authority**: Prescriptions (medication, dosage, frequency, duration, instructions) are authored exclusively by the doctor in a dedicated `Prescription` database model with unique constraint `@@unique([appointmentId, medication, dosage, frequency, duration])`. The AI model is strictly prohibited from inventing, altering, or omitting any medication.
 - **Strict JSON Schema Structured Outputs**: Uses OpenAI SDK (`gpt-4o-mini`) with `response_format: { type: "json_schema", json_schema: ... }` to format patient-friendly explanations without altering doctor instructions.
-- **Transactional Idempotency**: Consultation records update `Appointment` and create `MedicationReminder` records in a Prisma transaction. Resubmitting consultation notes updates existing reminders without creating duplicate records.
+- **Transactional Idempotency**: Consultation records save `Appointment` and `Prescription` records in a Prisma transaction BEFORE any AI API call occurs.
 - **Non-Fallback Failure Guard**: When `LLM_PROVIDER=openai`, if the OpenAI API call fails or `OPENAI_API_KEY` is missing, the system NEVER falls back to mock data. Clinician-entered notes and prescriptions are saved safely, and an explicit review banner is presented to the user with a retry action.
 
-### 4. Transactional Outbox & Job Lease Recovery
-To prevent external API failures (SMTP email servers, Google Calendar REST API) from rolling back successful appointment bookings:
-- Notification jobs are written to `NotificationLog` inside the booking transaction with unique `idempotencyKey` fields (`appt_email_confirmed_${id}`, `appt_calendar_create_${id}`).
-- **Atomic Job Claiming & Lease Recovery**: Worker nodes claim pending jobs or stale `PROCESSING` jobs (`claimedAt <= NOW() - 5 minutes`) using a unique `claimToken` in an atomic database update step.
+### 4. Admin Doctor Management & Appointment Lifecycle
+- **Admin Doctor Control**: `POST /api/admin/doctors`, `GET /api/admin/doctors`, `PATCH /api/admin/doctors/[id]`, `DELETE /api/admin/doctors/[id]`, `PUT /api/admin/doctors/[id]/working-hours`, and `POST /api/admin/doctors/[id]/leave`. Every route enforces `ADMIN_ONLY` session authorization and Zod schema validation.
+- **Dual Email Notifications**: Booking enqueues `appointment_confirmed_patient_${id}` and `appointment_confirmed_doctor_${id}` with role-specific templates.
+- **Cancellation & Rescheduling**: `POST /api/appointments/[id]/cancel` and `POST /api/appointments/[id]/reschedule` enforce ownership, check doctor leave & working hours, and enqueue dual role-specific emails & Google Calendar lifecycle events (`CALENDAR_CREATE_EVENT`, `CALENDAR_UPDATE_EVENT`, `CALENDAR_DELETE_EVENT`) idempotently.
 
 ---
 
@@ -56,7 +56,7 @@ npm run db:generate:local
 npm run db:push
 npm run db:seed:local
 
-# 3. Execute automated test suite (33+ tests)
+# 3. Execute automated test suite (46 tests)
 npm test
 
 # 4. Start Next.js development server
@@ -96,17 +96,15 @@ OPENAI_TIMEOUT_MS="10000"
 
 | Role | Email | Password | Access Level |
 | :--- | :--- | :--- | :--- |
-| **System Admin** | `admin@carepulse.com` | `admin123` | Full Admin Operations & Outbox Console |
-| **Doctor** | `sarah.jenkins@carepulse.com` | `admin123` | Doctor Consultation Queue, Prescription Form & Leave Manager |
-| **Patient** | `alex.rivera@example.com` | `patient123` | Patient Slot Search, Booking & Prescriptions Dashboard |
+| **System Admin** | `admin@carepulse.com` | `admin123` | Admin Doctor Management & Transactional Outbox Console |
+| **Doctor** | `sarah.jenkins@carepulse.com` | `admin123` | Doctor Consultation Queue, Prescription Form, Patient History & Leave Manager |
+| **Patient** | `alex.rivera@example.com` | `patient123` | Patient Workspace, Reschedule/Cancel Controls & Doctor Prescriptions Dashboard |
 
 ---
 
-## Production Deployment Checklist
+## Verification Summary
 
-- [x] Live OpenAI SDK integration with strict JSON Schema Structured Outputs.
-- [x] Audit record logging (`AiGenerationLog`) with latency, request ID, and token tracking.
-- [x] Doctor-authored prescription authority with atomic database transactions.
-- [x] Non-fallback failure recovery policy when live AI provider is unavailable.
-- [ ] Deploy managed PostgreSQL database and run `npm run db:migrate:deploy`.
-- [ ] Set production environment variables (`LLM_PROVIDER=openai`, `OPENAI_API_KEY`).
+- [x] **TypeScript Compilation**: `npx tsc --noEmit` passed with 0 errors.
+- [x] **Automated Tests**: `npm test` passed 46/46 test scenarios.
+- [x] **Production Build**: `npm run build` compiled 24 page & API route bundles cleanly.
+- [x] **Neumorphic Clinical UI**: Tactile clay surface, accessible typography, high-contrast badges, and interactive modals.

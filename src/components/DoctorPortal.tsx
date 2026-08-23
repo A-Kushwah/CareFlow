@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AvailableSlot } from '@/lib/types';
 
 type Section = 'schedule' | 'history' | 'leave';
 
@@ -28,6 +29,19 @@ export default function DoctorPortal() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [patientHistory, setPatientHistory] = useState<any | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Cancellation Modal State
+  const [cancellingAppt, setCancellingAppt] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState('Doctor request / schedule update');
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  // Reschedule Modal State
+  const [reschedulingAppt, setReschedulingAppt] = useState<any | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleSlots, setRescheduleSlots] = useState<AvailableSlot[]>([]);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<AvailableSlot | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
 
   // Structured consultation form fields
   const [observations, setObservations] = useState('');
@@ -61,6 +75,68 @@ export default function DoctorPortal() {
   useEffect(() => {
     loadSchedule();
   }, []);
+
+  // Load available slots when reschedule date changes
+  useEffect(() => {
+    if (!reschedulingAppt || !rescheduleDate) return;
+    setRescheduleLoading(true);
+    setSelectedRescheduleSlot(null);
+
+    fetch(`/api/doctors/slots?doctorId=${reschedulingAppt.doctorId}&date=${rescheduleDate}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRescheduleSlots(data.slots || []);
+      })
+      .finally(() => setRescheduleLoading(false));
+  }, [reschedulingAppt, rescheduleDate]);
+
+  const handleCancelSubmit = async () => {
+    if (!cancellingAppt) return;
+    setCancelBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/appointments/${cancellingAppt.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel appointment');
+      setMessage('Appointment cancelled successfully. Patient and doctor email notifications queued.');
+      setCancellingAppt(null);
+      await loadSchedule();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!reschedulingAppt || !selectedRescheduleSlot) return;
+    setRescheduleBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/appointments/${reschedulingAppt.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newStartTime: selectedRescheduleSlot.startTime,
+          newEndTime: selectedRescheduleSlot.endTime,
+          reason: 'Doctor requested reschedule',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reschedule appointment');
+      setMessage('Appointment rescheduled successfully. Notifications queued.');
+      setReschedulingAppt(null);
+      await loadSchedule();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setRescheduleBusy(false);
+    }
+  };
 
   const openConsultation = (a: any) => {
     setSelectedAppt(a);
@@ -115,7 +191,6 @@ export default function DoctorPortal() {
     setPrescriptions(prescriptions.filter((_, i) => i !== index));
   };
 
-  // Direct action: Load Patient History into dedicated Patient History tab
   const fetchPatientHistory = async (patientId: string) => {
     setSelectedPatientId(patientId);
     setHistoryLoading(true);
@@ -210,7 +285,6 @@ export default function DoctorPortal() {
     }
   };
 
-  // Distinct patient list for doctor history tab
   const uniquePatients = Array.from(
     new Map(appointments.map((a) => [a.patientId, a.patient])).values()
   ).filter(Boolean);
@@ -290,6 +364,8 @@ export default function DoctorPortal() {
             <div className="space-y-4">
               {appointments.map((a) => {
                 const hasNotes = Boolean(a.consultNotes || a.aiPostSummary);
+                const canCancelOrReschedule = a.status === 'CONFIRMED' || a.status === 'HELD';
+
                 return (
                   <article key={a.id} className="neu-card p-6 border border-[#EEF2F7]">
                     <div className="grid md:grid-cols-[280px_1fr_auto] gap-6 items-start">
@@ -317,21 +393,41 @@ export default function DoctorPortal() {
                       </div>
 
                       {/* Direct Actions Visible Directly On Patient Card */}
-                      <div className="flex flex-col sm:flex-row md:flex-col gap-2 min-w-[170px]">
+                      <div className="flex flex-col gap-2 min-w-[170px]">
                         <button
                           onClick={() => fetchPatientHistory(a.patientId)}
                           disabled={historyLoading && selectedPatientId === a.patientId}
-                          className="neu-btn-secondary text-xs min-h-[44px] justify-center"
-                          aria-label={`View patient history for ${a.patient?.name}`}
+                          className="neu-btn-secondary text-xs min-h-[40px] justify-center"
                         >
-                          {historyLoading && selectedPatientId === a.patientId ? 'Loading History…' : 'View Patient History'}
+                          {historyLoading && selectedPatientId === a.patientId ? 'Loading…' : 'View Patient History'}
                         </button>
+
                         <button
                           onClick={() => openConsultation(a)}
-                          className="neu-btn-primary text-xs min-h-[44px] justify-center"
+                          className="neu-btn-primary text-xs min-h-[40px] justify-center"
                         >
                           {a.aiPostSummary ? 'Open Consultation' : 'Complete Consultation'}
                         </button>
+
+                        {canCancelOrReschedule && (
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            <button
+                              onClick={() => {
+                                setReschedulingAppt(a);
+                                setRescheduleDate(new Date(a.startTime).toISOString().slice(0, 10));
+                              }}
+                              className="neu-btn-secondary text-[11px] py-1.5 px-2 justify-center"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              onClick={() => setCancellingAppt(a)}
+                              className="neu-btn-secondary text-[11px] py-1.5 px-2 justify-center text-[#B42318] border-[#FECDCA]"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -353,7 +449,6 @@ export default function DoctorPortal() {
               </p>
             </div>
 
-            {/* Patient Selector */}
             {uniquePatients.length > 0 && (
               <div className="flex items-center space-x-3">
                 <label htmlFor="patient-select" className="text-xs font-bold text-[#56616B]">Select Patient:</label>
@@ -508,7 +603,6 @@ export default function DoctorPortal() {
               <button
                 onClick={() => setSelectedAppt(null)}
                 className="neu-btn-secondary text-sm font-bold p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Close consultation modal"
               >
                 ×
               </button>
@@ -648,6 +742,112 @@ export default function DoctorPortal() {
                 className="neu-btn-primary text-xs min-h-[44px]"
               >
                 {busy ? 'Saving & Generating Summary…' : 'Save Record & Generate Explanation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancellingAppt && (
+        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center">
+          <div className="neu-panel bg-[#E0E5EC] max-w-md w-full p-6 space-y-5 border border-[#FECDCA]">
+            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-[#B42318]">Confirm Appointment Cancellation</h3>
+                <p className="text-xs font-semibold text-[#56616B] mt-0.5">
+                  Patient: {cancellingAppt.patient?.name} · {formatDay(cancellingAppt.startTime)}
+                </p>
+              </div>
+              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+            </div>
+
+            <div>
+              <label htmlFor="doc-cancel-reason" className="block text-xs font-bold text-[#26323B] mb-1">Cancellation Reason</label>
+              <input
+                id="doc-cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Doctor schedule update"
+                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
+              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Keep Appointment</button>
+              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="neu-btn-primary text-xs bg-[#B42318] hover:bg-[#911C13] min-h-[44px]">
+                {cancelBusy ? 'Cancelling…' : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {reschedulingAppt && (
+        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center overflow-y-auto">
+          <div className="neu-panel bg-[#E0E5EC] max-w-xl w-full p-6 space-y-5 border border-[#EEF2F7] my-8">
+            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+              <div>
+                <h3 className="text-base font-extrabold text-[#26323B]">Reschedule Patient Appointment</h3>
+                <p className="text-xs font-semibold text-[#5667D8] mt-0.5">
+                  Patient: {reschedulingAppt.patient?.name}
+                </p>
+              </div>
+              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+            </div>
+
+            <div>
+              <label htmlFor="doc-reschedule-date" className="block text-xs font-bold text-[#26323B] mb-1">Select New Date:</label>
+              <input
+                id="doc-reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <span className="block text-xs font-bold text-[#26323B]">Select Available Slot:</span>
+              {rescheduleLoading ? (
+                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">Calculating available slots…</div>
+              ) : rescheduleSlots.length === 0 ? (
+                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">No available slots found for this date.</div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                  {rescheduleSlots.map((slot, idx) => {
+                    const isSelected = selectedRescheduleSlot?.startTime === slot.startTime;
+                    const timeStr = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return (
+                      <button
+                        key={idx}
+                        disabled={!slot.isAvailable}
+                        onClick={() => setSelectedRescheduleSlot(slot)}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
+                          isSelected
+                            ? 'neu-btn-active bg-[#5667D8] text-white'
+                            : slot.isAvailable
+                            ? 'neu-btn-secondary'
+                            : 'bg-[#D4D9E2]/50 text-[#66727D] cursor-not-allowed line-through shadow-none'
+                        }`}
+                      >
+                        {timeStr}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
+              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Cancel</button>
+              <button
+                onClick={handleRescheduleSubmit}
+                disabled={!selectedRescheduleSlot || rescheduleBusy}
+                className="neu-btn-primary text-xs min-h-[44px]"
+              >
+                {rescheduleBusy ? 'Rescheduling…' : 'Confirm New Appointment Time'}
               </button>
             </div>
           </div>

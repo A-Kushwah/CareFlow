@@ -113,33 +113,75 @@ export async function applyDoctorLeave(
   for (const appt of conflictingAppointments) {
     await prisma.appointment.update({
       where: { id: appt.id },
-      data: { status: AppointmentStatus.CANCELLED },
+      data: {
+        status: AppointmentStatus.CANCELLED,
+        cancellationReason: `Cancelled due to doctor leave: ${reason}`,
+      },
     });
     cancelledAppointmentIds.push(appt.id);
 
-    const payload = JSON.stringify({
-      appointmentId: appt.id,
-      patientName: appt.patient.name,
-      patientEmail: appt.patient.email,
-      doctorName: appt.doctor.user.name,
-      startTime: appt.startTime.toISOString(),
-      reason: `Doctor is on leave: ${reason}`,
-    });
+    const doctorName = appt.doctor.user.name;
+    const patientName = appt.patient.name;
+    const startTimeIso = appt.startTime.toISOString();
 
-    const notif = await prisma.notificationLog.create({
+    // 1. Enqueue Patient Cancellation Email
+    const patientNotif = await prisma.notificationLog.create({
       data: {
-        idempotencyKey: `leave_cancel_${appt.id}_${leave.id}`,
+        idempotencyKey: `appointment_cancelled_patient_${appt.id}`,
         recipient: appt.patient.email,
         channel: NotificationChannel.EMAIL,
-        template: 'APPOINTMENT_CANCELLED_LEAVE',
-        payload,
+        template: 'APPOINTMENT_CANCELLED_PATIENT',
+        payload: JSON.stringify({
+          appointmentId: appt.id,
+          patientName,
+          doctorName,
+          startTime: startTimeIso,
+          reason: `Doctor is on leave: ${reason}`,
+        }),
         status: NotificationStatus.QUEUED,
         attempts: 0,
         nextRetryAt: new Date(),
       },
     });
 
-    queuedNotifications.push(notif.id);
+    // 2. Enqueue Doctor Cancellation Email
+    const doctorNotif = await prisma.notificationLog.create({
+      data: {
+        idempotencyKey: `appointment_cancelled_doctor_${appt.id}`,
+        recipient: appt.doctor.user.email,
+        channel: NotificationChannel.EMAIL,
+        template: 'APPOINTMENT_CANCELLED_DOCTOR',
+        payload: JSON.stringify({
+          appointmentId: appt.id,
+          patientName,
+          doctorName,
+          startTime: startTimeIso,
+          reason: `Leave submitted: ${reason}`,
+        }),
+        status: NotificationStatus.QUEUED,
+        attempts: 0,
+        nextRetryAt: new Date(),
+      },
+    });
+
+    // 3. Enqueue Calendar Delete Event
+    const calNotif = await prisma.notificationLog.create({
+      data: {
+        idempotencyKey: `appointment_calendar_delete_${appt.id}`,
+        recipient: appt.doctor.user.email,
+        channel: NotificationChannel.CALENDAR,
+        template: 'CALENDAR_DELETE_EVENT',
+        payload: JSON.stringify({
+          appointmentId: appt.id,
+          calendarEventId: appt.calendarEventId || undefined,
+        }),
+        status: NotificationStatus.QUEUED,
+        attempts: 0,
+        nextRetryAt: new Date(),
+      },
+    });
+
+    queuedNotifications.push(patientNotif.id, doctorNotif.id, calNotif.id);
   }
 
   return {
