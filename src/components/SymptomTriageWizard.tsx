@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AvailableSlot } from '@/lib/types';
 
 export default function SymptomTriageWizard({
@@ -18,6 +18,8 @@ export default function SymptomTriageWizard({
 }) {
   const [symptoms, setSymptoms] = useState('');
   const [holdId, setHoldId] = useState<string | null>(null);
+  const [holdExpiresAt, setHoldExpiresAt] = useState<Date | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [aiSummary, setAiSummary] = useState<any | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +38,27 @@ export default function SymptomTriageWizard({
     month: 'short',
     day: 'numeric',
   });
+
+  const doctorName = doctor.user?.name || doctor.name;
+  const specialty = doctor.specialty || 'General Practice';
+
+  // Live countdown effect for slot hold duration
+  useEffect(() => {
+    if (!holdExpiresAt) return;
+
+    const interval = setInterval(() => {
+      const diffMs = holdExpiresAt.getTime() - Date.now();
+      const sec = Math.max(0, Math.floor(diffMs / 1000));
+      setRemainingSeconds(sec);
+
+      if (sec === 0) {
+        setErrorMsg('Slot hold expired. Please select a slot again.');
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [holdExpiresAt]);
 
   const handleCreateHold = async () => {
     setErrorMsg('');
@@ -57,6 +80,9 @@ export default function SymptomTriageWizard({
       }
 
       setHoldId(data.hold.id);
+      const expiresAt = new Date(data.hold.expiresAt);
+      setHoldExpiresAt(expiresAt);
+      setRemainingSeconds(Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000)));
       return true;
     } catch {
       setErrorMsg('Failed to hold appointment slot');
@@ -66,7 +92,7 @@ export default function SymptomTriageWizard({
 
   const handleGeneratePreVisitSummary = async () => {
     if (!symptoms.trim()) {
-      setErrorMsg('Please enter symptoms before proceeding');
+      setErrorMsg('Please enter what you would like the doctor to know before proceeding');
       return;
     }
 
@@ -101,7 +127,13 @@ export default function SymptomTriageWizard({
 
   const handleFinalConfirm = async () => {
     if (!holdId) {
-      setErrorMsg('Slot hold expired or missing');
+      // Auto-create hold before confirmation if not yet created
+      const holdCreated = await handleCreateHold();
+      if (!holdCreated) return;
+    }
+
+    if (remainingSeconds === 0) {
+      setErrorMsg('Slot hold expired. Please cancel and select a slot again.');
       return;
     }
 
@@ -109,8 +141,6 @@ export default function SymptomTriageWizard({
     setErrorMsg('');
 
     try {
-      // SECURITY ENFORCEMENT: Server uses authenticated session identity (session.userId).
-      // Client passes holdId and symptoms without relying on browser-supplied patientId fallbacks.
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,6 +165,12 @@ export default function SymptomTriageWizard({
     }
   };
 
+  const formatTimer = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="bg-white border border-slate-200 rounded-lg max-w-xl w-full p-5 space-y-4 shadow-lg">
@@ -143,12 +179,19 @@ export default function SymptomTriageWizard({
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Confirm Appointment</h3>
             <p className="text-xs text-slate-500">
-              {doctor.user?.name || doctor.name} • {formattedDate} ({formattedTime})
+              {doctorName} • {specialty} • {formattedDate} • {formattedTime}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">
-            ×
-          </button>
+          <div className="flex items-center space-x-3">
+            {remainingSeconds !== null && remainingSeconds > 0 && (
+              <span className="text-[11px] font-medium bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded">
+                Slot held for {formatTimer(remainingSeconds)}
+              </span>
+            )}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">
+              ×
+            </button>
+          </div>
         </div>
 
         {errorMsg && (
@@ -160,13 +203,13 @@ export default function SymptomTriageWizard({
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
-              Reason for Visit & Current Symptoms:
+              What would you like the doctor to know?
             </label>
             <textarea
               rows={3}
               value={symptoms}
               onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="Describe symptoms or clinical history..."
+              placeholder="e.g. Dark skin rashes, persistent itching for 3 days..."
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
             />
           </div>
@@ -181,12 +224,12 @@ export default function SymptomTriageWizard({
             </button>
           )}
 
-          {/* AI Pre-Visit Card */}
+          {/* AI Visit Preparation Card */}
           {aiSummary && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2 text-xs">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-900 text-[11px] uppercase">
-                  Visit Preparation Notes
+                <span className="font-semibold text-slate-900 text-xs tracking-tight">
+                  AI Visit Preparation
                 </span>
                 <span
                   className={`badge-${
@@ -197,24 +240,34 @@ export default function SymptomTriageWizard({
                       : 'emerald'
                   }`}
                 >
-                  Urgency: {aiSummary.urgencyLevel}
+                  Urgency for clinician review: {aiSummary.urgencyLevel}
                 </span>
               </div>
 
-              <p className="text-slate-700">
-                <strong>Chief Complaint:</strong> {aiSummary.chiefComplaint}
-              </p>
+              <div>
+                <strong className="text-slate-900 block mb-0.5 text-[11px] uppercase tracking-wide">
+                  Chief complaint
+                </strong>
+                <p className="text-slate-700 text-xs">{aiSummary.chiefComplaint}</p>
+              </div>
 
               {aiSummary.suggestedQuestions?.length > 0 && (
                 <div>
-                  <strong className="text-slate-800 block mb-0.5">Suggested Questions:</strong>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 text-[11px]">
+                  <strong className="text-slate-900 block mb-0.5 text-[11px] uppercase tracking-wide">
+                    Questions to consider
+                  </strong>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 text-xs">
                     {aiSummary.suggestedQuestions.map((q: string, i: number) => (
                       <li key={i}>{q}</li>
                     ))}
                   </ul>
                 </div>
               )}
+
+              {/* Medical Disclaimer */}
+              <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500 italic">
+                AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.
+              </div>
             </div>
           )}
         </div>
@@ -224,7 +277,11 @@ export default function SymptomTriageWizard({
           <button onClick={onClose} className="btn-secondary text-xs">
             Cancel
           </button>
-          <button onClick={handleFinalConfirm} disabled={submitting} className="btn-primary text-xs">
+          <button
+            onClick={handleFinalConfirm}
+            disabled={submitting || remainingSeconds === 0}
+            className="btn-primary text-xs"
+          >
             {submitting ? 'Confirming...' : 'Confirm Booking'}
           </button>
         </div>
