@@ -24,20 +24,22 @@ export async function checkAiRateLimitPersistent(key: string, limit = 10, window
     return false;
   }
 
-  // 2. Check persistent database log entries
+  // 2. Check persistent database log entries if table exists
   try {
-    const recentDbLogsCount = await prisma.aiGenerationLog.count({
-      where: {
-        OR: [{ patientId: key }, { doctorId: key }],
-        createdAt: { gte: windowStart },
-      },
-    });
+    if ((prisma as any).aiGenerationLog) {
+      const recentDbLogsCount = await (prisma as any).aiGenerationLog.count({
+        where: {
+          OR: [{ patientId: key }, { doctorId: key }],
+          createdAt: { gte: windowStart },
+        },
+      });
 
-    if (recentDbLogsCount >= limit) {
-      return false;
+      if (recentDbLogsCount >= limit) {
+        return false;
+      }
     }
   } catch {
-    // Ignore DB errors if DB is unreachable
+    // Ignore DB errors if DB table is uninitialized
   }
 
   timestamps.push(now);
@@ -47,6 +49,19 @@ export async function checkAiRateLimitPersistent(key: string, limit = 10, window
 
 export function hashInput(text: string): string {
   return crypto.createHash('sha256').update(text.trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+// Helper to safely persist audit logs without throwing if Prisma client is regenerating
+async function safeCreateAuditLog(data: any): Promise<string | undefined> {
+  try {
+    if ((prisma as any).aiGenerationLog) {
+      const record = await (prisma as any).aiGenerationLog.create({ data });
+      return record?.id;
+    }
+  } catch (e) {
+    console.warn('[AI AUDIT LOG WARNING] Could not persist AiGenerationLog record:', (e as any)?.message);
+  }
+  return undefined;
 }
 
 // ----------------------------------------------------------------------
@@ -130,21 +145,19 @@ export async function invokePreVisitLLM(
     latencyMs = Date.now() - startTime;
     const errorReason = err.message || 'LLM provider failure';
 
-    await prisma.aiGenerationLog.create({
-      data: {
-        appointmentId: options.appointmentId || null,
-        patientId: options.patientId || null,
-        doctorId: options.doctorId || null,
-        action: 'PRE_VISIT',
-        provider,
-        model: modelName,
-        promptVersion: PROMPT_VERSION,
-        status: 'FAILED',
-        latencyMs,
-        inputHash,
-        outputJson: JSON.stringify({ error: errorReason }),
-        errorReason,
-      },
+    await safeCreateAuditLog({
+      appointmentId: options.appointmentId || null,
+      patientId: options.patientId || null,
+      doctorId: options.doctorId || null,
+      action: 'PRE_VISIT',
+      provider,
+      model: modelName,
+      promptVersion: PROMPT_VERSION,
+      status: 'FAILED',
+      latencyMs,
+      inputHash,
+      outputJson: JSON.stringify({ error: errorReason }),
+      errorReason,
     });
 
     if (provider === 'openai') {
@@ -154,31 +167,29 @@ export async function invokePreVisitLLM(
     }
   }
 
-  // Persist Audit Record
-  const auditRecord = await prisma.aiGenerationLog.create({
-    data: {
-      appointmentId: options.appointmentId || null,
-      patientId: options.patientId || null,
-      doctorId: options.doctorId || null,
-      action: 'PRE_VISIT',
-      provider,
-      model: modelName,
-      promptVersion: PROMPT_VERSION,
-      status: 'SUCCESS',
-      requestId: requestId || null,
-      latencyMs,
-      promptTokens,
-      completionTokens,
-      inputHash,
-      outputJson: JSON.stringify(resultData),
-    },
+  // Persist Audit Record safely
+  const auditId = await safeCreateAuditLog({
+    appointmentId: options.appointmentId || null,
+    patientId: options.patientId || null,
+    doctorId: options.doctorId || null,
+    action: 'PRE_VISIT',
+    provider,
+    model: modelName,
+    promptVersion: PROMPT_VERSION,
+    status: 'SUCCESS',
+    requestId: requestId || null,
+    latencyMs,
+    promptTokens,
+    completionTokens,
+    inputHash,
+    outputJson: JSON.stringify(resultData),
   });
 
   return {
     summary: resultData!,
     provider,
     model: modelName,
-    auditId: auditRecord.id,
+    auditId,
   };
 }
 
@@ -266,21 +277,19 @@ export async function invokePostVisitLLM(
     latencyMs = Date.now() - startTime;
     const errorReason = err.message || 'LLM provider failure';
 
-    await prisma.aiGenerationLog.create({
-      data: {
-        appointmentId: options.appointmentId || null,
-        patientId: options.patientId || null,
-        doctorId: options.doctorId || null,
-        action: 'POST_VISIT',
-        provider,
-        model: modelName,
-        promptVersion: PROMPT_VERSION,
-        status: 'FAILED',
-        latencyMs,
-        inputHash,
-        outputJson: JSON.stringify({ error: errorReason }),
-        errorReason,
-      },
+    await safeCreateAuditLog({
+      appointmentId: options.appointmentId || null,
+      patientId: options.patientId || null,
+      doctorId: options.doctorId || null,
+      action: 'POST_VISIT',
+      provider,
+      model: modelName,
+      promptVersion: PROMPT_VERSION,
+      status: 'FAILED',
+      latencyMs,
+      inputHash,
+      outputJson: JSON.stringify({ error: errorReason }),
+      errorReason,
     });
 
     if (provider === 'openai') {
@@ -290,29 +299,27 @@ export async function invokePostVisitLLM(
     }
   }
 
-  const auditRecord = await prisma.aiGenerationLog.create({
-    data: {
-      appointmentId: options.appointmentId || null,
-      patientId: options.patientId || null,
-      doctorId: options.doctorId || null,
-      action: 'POST_VISIT',
-      provider,
-      model: modelName,
-      promptVersion: PROMPT_VERSION,
-      status: 'SUCCESS',
-      requestId: requestId || null,
-      latencyMs,
-      promptTokens,
-      completionTokens,
-      inputHash,
-      outputJson: JSON.stringify(resultData),
-    },
+  const auditId = await safeCreateAuditLog({
+    appointmentId: options.appointmentId || null,
+    patientId: options.patientId || null,
+    doctorId: options.doctorId || null,
+    action: 'POST_VISIT',
+    provider,
+    model: modelName,
+    promptVersion: PROMPT_VERSION,
+    status: 'SUCCESS',
+    requestId: requestId || null,
+    latencyMs,
+    promptTokens,
+    completionTokens,
+    inputHash,
+    outputJson: JSON.stringify(resultData),
   });
 
   return {
     summary: resultData!,
     provider,
     model: modelName,
-    auditId: auditRecord.id,
+    auditId,
   };
 }
