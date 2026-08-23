@@ -23,9 +23,7 @@ export default function DoctorDirectory({
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('ALL');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(
-    getNextWeekdayDate()
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getNextWeekdayDate());
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [availabilityMessage, setAvailabilityMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,96 +67,104 @@ export default function DoctorDirectory({
   const currentDoctor = doctors.find((d) => d.id === selectedDoctorId);
 
   return (
-    <div className="space-y-6">
-      <div className="desk-card p-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Specialist Directory & Slot Selection</h2>
-            <p className="text-xs text-slate-500">Filter clinical specialists and check slot availability.</p>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium text-slate-600">Specialization:</span>
-            <select
-              value={selectedSpecialty}
-              onChange={(e) => setSelectedSpecialty(e.target.value)}
-              className="text-xs bg-white border border-slate-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-            >
-              {specialties.map((spec) => (
-                <option key={spec} value={spec}>
-                  {spec === 'ALL' ? 'All Specialties' : spec}
-                </option>
-              ))}
-            </select>
-          </div>
+    <section className="neu-panel p-6 space-y-6" aria-labelledby="booking-heading">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#D4D9E2] pb-4">
+        <div>
+          <h2 id="booking-heading" className="text-lg font-bold text-[#26323B]">5. Book a New Appointment</h2>
+          <p className="text-xs font-medium text-[#56616B] mt-0.5">Filter clinical specialists and check real-time slot availability.</p>
         </div>
 
-        {/* Doctor List Cards */}
-        {loading ? (
-          <p className="text-xs text-slate-500 py-4">Loading clinical specialists...</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredDoctors.map((doc) => {
-              const isSelected = doc.id === selectedDoctorId;
-              return (
-                <div
-                  key={doc.id}
-                  onClick={() => setSelectedDoctorId(doc.id)}
-                  className={`p-4 rounded-md border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-slate-900 bg-slate-50/80 shadow-xs'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">{doc.user?.name || doc.name}</h3>
-                      <p className="text-xs text-slate-600">{doc.specialty || doc.specialization}</p>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      ${doc.consultFee}
-                    </span>
-                  </div>
-                  <div className="mt-3 text-[11px] text-slate-500">
-                    Slot duration: {doc.slotDurationMin || 30} mins
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          <label htmlFor="specialty-select" className="text-xs font-bold text-[#56616B]">Specialty Filter:</label>
+          <select
+            id="specialty-select"
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+            className="neu-input text-xs px-3 py-2 text-[#26323B] font-bold min-h-[44px]"
+          >
+            {specialties.map((spec) => (
+              <option key={spec} value={spec}>
+                {spec === 'ALL' ? 'All Specialties' : spec}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Availability Timeline Section */}
+      {/* Doctor Cards Directory Grid */}
+      {loading ? (
+        <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+          Loading clinical specialists...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDoctors.map((doc) => {
+            const isSelected = doc.id === selectedDoctorId;
+            return (
+              <div
+                key={doc.id}
+                onClick={() => setSelectedDoctorId(doc.id)}
+                tabIndex={0}
+                role="button"
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedDoctorId(doc.id)}
+                aria-pressed={isSelected}
+                className={`neu-card p-5 cursor-pointer border transition-all ${
+                  isSelected
+                    ? 'border-[#5667D8] bg-[#EEF2F7] shadow-inset'
+                    : 'border-[#EEF2F7] hover:border-[#D4D9E2]'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#26323B]">{doc.user?.name || doc.name}</h3>
+                    <p className="text-xs font-semibold text-[#5667D8]">{doc.specialty || doc.specialization}</p>
+                  </div>
+                  <span className="clinical-badge-neutral">
+                    ${doc.consultFee}
+                  </span>
+                </div>
+                <div className="mt-3 text-[11px] font-semibold text-[#66727D]">
+                  Slot duration: {doc.slotDurationMin || 30} mins
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Slot Selection Timeline */}
       {currentDoctor && (
-        <div className="desk-card p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
+        <div className="neu-panel p-6 space-y-4 border border-[#EEF2F7]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D4D9E2] pb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-bold text-[#26323B]">
                 Available Slots for {currentDoctor.user?.name || currentDoctor.name}
               </h3>
-              <p className="text-xs text-slate-500">Select a time slot to proceed to visit preparation.</p>
+              <p className="text-xs font-medium text-[#56616B]">Select an open slot to prepare your consultation notes.</p>
             </div>
 
             <div className="flex items-center space-x-2">
-              <label className="text-xs font-medium text-slate-600">Select Date:</label>
+              <label htmlFor="date-picker" className="text-xs font-bold text-[#56616B]">Select Date:</label>
               <input
+                id="date-picker"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="text-xs bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="neu-input text-xs px-3 py-2 text-[#26323B] font-bold min-h-[44px]"
               />
             </div>
           </div>
 
           {slotsLoading ? (
-            <p className="text-xs text-slate-500 py-4">Calculating slot availability...</p>
+            <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+              Calculating slot availability...
+            </div>
           ) : slots.length === 0 ? (
-            <p className="text-xs text-slate-500 py-4">
+            <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">
               {availabilityMessage || 'No open slots remain for this date.'}
-            </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {slots.map((slot, index) => {
                 const timeStr = new Date(slot.startTime).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -170,18 +176,13 @@ export default function DoctorDirectory({
                     key={index}
                     disabled={!slot.isAvailable}
                     onClick={() => onSelectSlot(currentDoctor, slot)}
-                    className={`py-2 px-3 rounded-md text-xs font-medium border text-center transition-all ${
+                    className={`py-3 px-3 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
                       slot.isAvailable
-                        ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-900 hover:text-white hover:border-slate-900'
-                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed line-through'
+                        ? 'neu-btn-secondary hover:bg-[#5667D8] hover:text-white'
+                        : 'bg-[#D4D9E2]/50 text-[#66727D] cursor-not-allowed line-through shadow-none'
                     }`}
                   >
                     {timeStr}
-                    {!slot.isAvailable && slot.reason && (
-                      <span className="block text-[9px] no-underline font-normal text-slate-400 mt-0.5">
-                        {slot.reason}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -189,6 +190,6 @@ export default function DoctorDirectory({
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

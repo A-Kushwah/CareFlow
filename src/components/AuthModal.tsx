@@ -25,7 +25,7 @@ export default function AuthModal({
     const loginPass = customPass || password;
 
     if (!loginEmail || !loginPass) {
-      setErrorMsg('Please enter email and password');
+      setErrorMsg('Please enter both email address and password');
       return;
     }
 
@@ -41,14 +41,14 @@ export default function AuthModal({
 
       const data = await res.json();
       if (!res.ok) {
-        setErrorMsg(data.error || 'Invalid credentials');
+        setErrorMsg(data.error || 'Invalid authentication credentials');
         setLoading(false);
         return;
       }
 
       onSuccess(data.user);
     } catch {
-      setErrorMsg('Login request failed');
+      setErrorMsg('Network error executing login request');
       setLoading(false);
     }
   };
@@ -56,7 +56,7 @@ export default function AuthModal({
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) {
-      setErrorMsg('All fields are required');
+      setErrorMsg('All fields are required to register a patient account');
       return;
     }
 
@@ -79,7 +79,7 @@ export default function AuthModal({
 
       onSuccess(data.user);
     } catch {
-      setErrorMsg('Registration request failed');
+      setErrorMsg('Network error executing registration request');
       setLoading(false);
     }
   };
@@ -99,56 +99,60 @@ export default function AuthModal({
   };
 
   return (
-    <div className={standalone ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4'}>
-      <div className="bg-white border border-slate-200 rounded-lg max-w-sm w-full p-5 space-y-4 shadow-lg">
+    <div className={standalone ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-[#26323B]/60 p-4'}>
+      <div className="neu-panel bg-[#E0E5EC] max-w-sm w-full p-6 space-y-5 shadow-2xl border border-[#EEF2F7]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-base font-extrabold text-[#26323B]">
               {mode === 'login' ? 'CarePulse Authentication' : 'Create Patient Account'}
             </h3>
-            <p className="text-xs text-slate-500">
-              {mode === 'login'
-                ? 'Sign in to access booking & clinical portals'
-                : 'Register a patient account for slot booking'}
+            <p className="text-xs font-semibold text-[#56616B]">
+              {mode === 'login' ? 'Sign in to access workspace' : 'Register patient account'}
             </p>
           </div>
           {!standalone && (
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">×</button>
+            <button
+              onClick={onClose}
+              className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close authentication modal"
+            >
+              ×
+            </button>
           )}
         </div>
 
         {errorMsg && (
-          <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+          <div className="p-3 rounded-xl bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold">
             {errorMsg}
           </div>
         )}
 
-        {/* Demo Account Fill Buttons */}
+        {/* Demo Accounts Presets */}
         {mode === 'login' && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-1.5">
-            <span className="block text-[11px] font-semibold text-slate-700 uppercase">
-              Demo accounts — credentials filled for evaluation
+          <div className="neu-inset p-3 space-y-2">
+            <span className="block text-[10px] font-extrabold text-[#56616B] uppercase tracking-wider">
+              Evaluation Credentials
             </span>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => fillDemoAccount(Role.PATIENT)}
-                className="py-1 px-2 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
               >
                 Patient
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoAccount(Role.DOCTOR)}
-                className="py-1 px-2 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
               >
                 Doctor
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoAccount(Role.ADMIN)}
-                className="py-1 px-2 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
               >
                 Admin
               </button>
@@ -156,60 +160,63 @@ export default function AuthModal({
           </div>
         )}
 
-        {/* Auth Form */}
-        <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-3">
+        {/* Form */}
+        <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
           {mode === 'register' && (
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Full Name:</label>
+              <label htmlFor="reg-name" className="block text-xs font-bold text-[#26323B] mb-1">Full Name *</label>
               <input
+                id="reg-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Alex Rivera"
-                className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
+                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Email Address:</label>
+            <label htmlFor="auth-email" className="block text-xs font-bold text-[#26323B] mb-1">Email Address *</label>
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
-              className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
+              placeholder="user@carepulse.com"
+              className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Password:</label>
+            <label htmlFor="auth-password" className="block text-xs font-bold text-[#26323B] mb-1">Password *</label>
             <input
+              id="auth-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
+              className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
             />
           </div>
 
-          <button type="submit" disabled={loading} className="w-full btn-primary text-xs">
-            {loading ? 'Authenticating...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          <button type="submit" disabled={loading} className="neu-btn-primary text-xs w-full justify-center min-h-[44px]">
+            {loading ? 'Authenticating…' : mode === 'login' ? 'Sign In to Workstation' : 'Register Account'}
           </button>
         </form>
 
-        {/* Mode Switcher Footer */}
-        <div className="pt-2 border-t border-slate-200 text-center text-xs text-slate-500">
+        {/* Footer */}
+        <div className="pt-2 border-t border-[#D4D9E2] text-center text-xs font-medium text-[#56616B]">
           {mode === 'login' ? (
             <p>
-              Don't have an account?{' '}
+              Need a patient account?{' '}
               <button
                 type="button"
                 onClick={() => {
                   setMode('register');
                   setErrorMsg('');
                 }}
-                className="font-semibold text-slate-900 hover:underline"
+                className="font-bold text-[#5667D8] hover:underline"
               >
                 Register as Patient
               </button>
@@ -223,7 +230,7 @@ export default function AuthModal({
                   setMode('login');
                   setErrorMsg('');
                 }}
-                className="font-semibold text-slate-900 hover:underline"
+                className="font-bold text-[#5667D8] hover:underline"
               >
                 Sign In
               </button>

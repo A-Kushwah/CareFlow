@@ -24,22 +24,38 @@ export default function LoginPage() {
     router.replace(role === Role.PATIENT ? '/?portal=patient' : role === Role.DOCTOR ? '/?portal=doctor' : '/?portal=admin');
   };
 
-  if (checking) return <div className="min-h-screen grid place-items-center text-sm text-slate-500">Checking session…</div>;
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-[#E0E5EC] grid place-items-center text-xs font-bold text-[#56616B]">
+        Verifying session authorization…
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <div className="max-w-5xl mx-auto grid lg:grid-cols-[1fr_380px] gap-10 items-center">
-        <section className="space-y-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">CarePulse / Clinic Operations</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-950">A clearer handoff between patients and clinicians.</h1>
-          <p className="max-w-xl text-sm leading-6 text-slate-600">Sign in to manage appointments, consultation records, follow-up instructions, and medication reminders from the workspace that belongs to your role.</p>
-          <div className="grid sm:grid-cols-3 gap-3 text-xs text-slate-600">
-            <div className="border-l-2 border-emerald-500 pl-3">Patients see their own care history.</div>
-            <div className="border-l-2 border-slate-400 pl-3">Doctors see assigned patients only.</div>
-            <div className="border-l-2 border-slate-400 pl-3">Every view is session-protected.</div>
+    <main className="min-h-screen bg-[#E0E5EC] px-4 py-12 flex items-center justify-center">
+      <div className="max-w-5xl w-full grid lg:grid-cols-[1fr_400px] gap-8 items-center">
+        <section className="neu-panel p-8 space-y-6">
+          <div className="inline-flex items-center space-x-2 bg-[#EEF2F7] px-3 py-1 rounded-xl border border-[#D4D9E2]">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#16866D]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[#16866D]">CarePulse Clinical Operations</span>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#26323B]">
+            Structured clinical handoff between patients and clinicians.
+          </h1>
+          <p className="text-xs font-medium leading-6 text-[#56616B]">
+            Sign in to manage appointment schedules, doctor-authored prescription orders, visit summaries, and automated reminders in a session-protected workspace.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-3 text-xs text-[#56616B] font-bold pt-2">
+            <div className="neu-inset p-3 border-l-4 border-[#16866D]">Patients access authorized care history.</div>
+            <div className="neu-inset p-3 border-l-4 border-[#5667D8]">Doctors access assigned patients only.</div>
+            <div className="neu-inset p-3 border-l-4 border-[#A86B00]">Every view is session-authenticated.</div>
           </div>
         </section>
-        <AuthModal standalone onClose={() => router.push('/')} onSuccess={handleSuccess} />
+
+        <div>
+          <AuthModal standalone onClose={() => router.push('/')} onSuccess={handleSuccess} />
+        </div>
       </div>
     </main>
   );

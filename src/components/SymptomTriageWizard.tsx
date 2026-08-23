@@ -33,16 +33,17 @@ export default function SymptomTriageWizard({
     minute: '2-digit',
   })}`;
 
-  const formattedDate = new Date(slot.startTime).toLocaleDateString(undefined, {
+  const formattedDate = new Date(slot.startTime).toLocaleDateString([], {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
   });
 
   const doctorName = doctor.user?.name || doctor.name;
   const specialty = doctor.specialty || 'General Practice';
 
-  // Live countdown effect for slot hold duration
+  // Live countdown timer for slot hold
   useEffect(() => {
     if (!holdExpiresAt) return;
 
@@ -92,7 +93,7 @@ export default function SymptomTriageWizard({
 
   const handleGeneratePreVisitSummary = async () => {
     if (!symptoms.trim()) {
-      setErrorMsg('Please enter what you would like the doctor to know before proceeding');
+      setErrorMsg('Please enter symptoms or information for the clinician');
       return;
     }
 
@@ -116,10 +117,10 @@ export default function SymptomTriageWizard({
       if (res.ok && data.summary) {
         setAiSummary(data.summary);
       } else {
-        setErrorMsg(data.error || 'Failed to generate pre-visit summary');
+        setErrorMsg(data.error || 'Failed to generate pre-visit preparation summary');
       }
     } catch {
-      setErrorMsg('Pre-visit generation request failed');
+      setErrorMsg('Pre-visit request failed');
     } finally {
       setLoadingAi(false);
     }
@@ -127,7 +128,6 @@ export default function SymptomTriageWizard({
 
   const handleFinalConfirm = async () => {
     if (!holdId) {
-      // Auto-create hold before confirmation if not yet created
       const holdCreated = await handleCreateHold();
       if (!holdCreated) return;
     }
@@ -172,45 +172,50 @@ export default function SymptomTriageWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="bg-white border border-slate-200 rounded-lg max-w-xl w-full p-5 space-y-4 shadow-lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#26323B]/60 p-4">
+      <div className="neu-panel bg-[#E0E5EC] max-w-xl w-full p-6 space-y-5 shadow-2xl border border-[#EEF2F7]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Confirm Appointment</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-base font-extrabold text-[#26323B]">Confirm Clinical Appointment</h3>
+            <p className="text-xs font-bold text-[#56616B] mt-0.5">
               {doctorName} • {specialty} • {formattedDate} • {formattedTime}
             </p>
           </div>
           <div className="flex items-center space-x-3">
             {remainingSeconds !== null && remainingSeconds > 0 && (
-              <span className="text-[11px] font-medium bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded">
+              <span className="clinical-badge-warning">
                 Slot held for {formatTimer(remainingSeconds)}
               </span>
             )}
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">
+            <button
+              onClick={onClose}
+              className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close booking modal"
+            >
               ×
             </button>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+          <div className="p-3 rounded-xl bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold">
             {errorMsg}
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              What would you like the doctor to know?
+            <label htmlFor="symptoms-input" className="block text-xs font-bold text-[#26323B] mb-1">
+              What would you like the doctor to know? (Symptoms & Reason for Visit)
             </label>
             <textarea
+              id="symptoms-input"
               rows={3}
               value={symptoms}
               onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="e.g. Dark skin rashes, persistent itching for 3 days..."
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
+              placeholder="e.g. Skin rashes on left arm, fever for 2 days..."
+              className="neu-input text-xs w-full p-3 font-medium text-[#26323B]"
             />
           </div>
 
@@ -218,45 +223,45 @@ export default function SymptomTriageWizard({
             <button
               onClick={handleGeneratePreVisitSummary}
               disabled={loadingAi || !symptoms.trim()}
-              className="w-full btn-secondary text-xs"
+              className="neu-btn-secondary text-xs w-full justify-center min-h-[44px]"
             >
-              {loadingAi ? 'Generating preparation notes...' : 'Generate Visit Preparation Notes'}
+              {loadingAi ? 'Generating Visit Preparation Notes…' : 'Generate Visit Preparation Notes'}
             </button>
           )}
 
           {/* AI Visit Preparation Card */}
           {aiSummary && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-900 text-xs tracking-tight">
-                  AI Visit Preparation
+            <div className="neu-card p-4 space-y-3 text-xs border border-[#EEF2F7]">
+              <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-2">
+                <span className="font-extrabold text-[#26323B] text-xs">
+                  AI Visit Preparation Notes
                 </span>
                 <span
-                  className={`badge-${
+                  className={`clinical-badge-${
                     aiSummary.urgencyLevel === 'High'
-                      ? 'rose'
+                      ? 'danger'
                       : aiSummary.urgencyLevel === 'Medium'
-                      ? 'amber'
-                      : 'emerald'
+                      ? 'warning'
+                      : 'success'
                   }`}
                 >
-                  Urgency for clinician review: {aiSummary.urgencyLevel}
+                  Urgency: {aiSummary.urgencyLevel}
                 </span>
               </div>
 
               <div>
-                <strong className="text-slate-900 block mb-0.5 text-[11px] uppercase tracking-wide">
-                  Chief complaint
+                <strong className="text-[#26323B] block mb-0.5 text-[10px] uppercase font-extrabold tracking-wider">
+                  Chief Complaint
                 </strong>
-                <p className="text-slate-700 text-xs">{aiSummary.chiefComplaint}</p>
+                <p className="text-[#56616B] font-medium">{aiSummary.chiefComplaint}</p>
               </div>
 
               {aiSummary.suggestedQuestions?.length > 0 && (
                 <div>
-                  <strong className="text-slate-900 block mb-0.5 text-[11px] uppercase tracking-wide">
-                    Questions to consider
+                  <strong className="text-[#26323B] block mb-0.5 text-[10px] uppercase font-extrabold tracking-wider">
+                    Questions to Consider
                   </strong>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 text-xs">
+                  <ul className="list-disc pl-4 space-y-0.5 text-[#56616B] font-medium">
                     {aiSummary.suggestedQuestions.map((q: string, i: number) => (
                       <li key={i}>{q}</li>
                     ))}
@@ -264,25 +269,24 @@ export default function SymptomTriageWizard({
                 </div>
               )}
 
-              {/* Medical Disclaimer */}
-              <div className="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500 italic">
-                AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.
+              <div className="pt-2 border-t border-[#D4D9E2] text-[11px] text-[#66727D] italic">
+                AI preparation notes organize information only and do not constitute a diagnosis or medical advice.
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200">
-          <button onClick={onClose} className="btn-secondary text-xs">
+        <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
+          <button onClick={onClose} className="neu-btn-secondary text-xs min-h-[44px]">
             Cancel
           </button>
           <button
             onClick={handleFinalConfirm}
             disabled={submitting || remainingSeconds === 0}
-            className="btn-primary text-xs"
+            className="neu-btn-primary text-xs min-h-[44px]"
           >
-            {submitting ? 'Confirming...' : 'Confirm Booking'}
+            {submitting ? 'Confirming Appointment…' : 'Confirm Appointment Booking'}
           </button>
         </div>
       </div>

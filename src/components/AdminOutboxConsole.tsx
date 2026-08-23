@@ -73,122 +73,129 @@ export default function AdminOutboxConsole() {
   };
 
   return (
-    <div className="space-y-6">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6" aria-label="Admin Operations Console">
       {msg && (
-        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+        <div className="p-4 rounded-xl bg-[#E6F4F1] border-l-4 border-[#16866D] text-[#16866D] text-xs font-bold">
           {msg}
         </div>
       )}
 
       {errorMsg && (
-        <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+        <div className="p-4 rounded-xl bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold">
           {errorMsg}
         </div>
       )}
 
-      {/* Operations Dashboard Header */}
-      <div className="desk-card p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3 mb-4">
+      {/* Operations Header */}
+      <header className="neu-panel p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D4D9E2] pb-4 mb-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Transactional Outbox Queue Console</h2>
-            <p className="text-xs text-slate-500">Monitor notification queue health, DLQ inspections, and worker leases.</p>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#5667D8]">Operations & Outbox</span>
+            <h1 className="text-2xl font-extrabold text-[#26323B] mt-1">Transactional Outbox Queue Console</h1>
+            <p className="text-xs font-medium text-[#56616B] mt-0.5">
+              Monitor notification queue health, worker leases, and dead-letter queue (DLQ) retry policies.
+            </p>
           </div>
 
           <button
             onClick={handleTriggerWorker}
             disabled={processing}
-            className="btn-primary text-xs"
+            className="neu-btn-primary text-xs font-bold min-h-[44px]"
           >
-            {processing ? 'Processing Queue...' : 'Trigger Outbox Worker'}
+            {processing ? 'Processing Outbox Queue…' : 'Trigger Outbox Worker'}
           </button>
         </div>
 
-        {/* Compact Queue Metrics Summary Table */}
+        {/* Compact Queue Metrics Summary Row */}
         {metrics && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
-            <div className="p-3 rounded-md bg-slate-50 border border-slate-200">
-              <span className="block text-xs font-medium text-slate-500 uppercase tracking-wider">Queued</span>
-              <span className="text-lg font-bold text-slate-800">{metrics.queuedCount || 0}</span>
+            <div className="neu-inset p-3.5 border border-[#EEF2F7]">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#66727D]">Queued Jobs</span>
+              <span className="text-xl font-extrabold text-[#26323B]">{metrics.queuedCount || 0}</span>
             </div>
 
-            <div className="p-3 rounded-md bg-amber-50 border border-amber-200">
-              <span className="block text-xs font-medium text-amber-700 uppercase tracking-wider">Processing</span>
-              <span className="text-lg font-bold text-amber-800">{metrics.processingCount || 0}</span>
+            <div className="neu-inset p-3.5 border border-[#F7D89C] bg-[#FFF8EB]/50">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#A86B00]">Processing</span>
+              <span className="text-xl font-extrabold text-[#A86B00]">{metrics.processingCount || 0}</span>
             </div>
 
-            <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200">
-              <span className="block text-xs font-medium text-emerald-700 uppercase tracking-wider">Sent</span>
-              <span className="text-lg font-bold text-emerald-800">{metrics.sentCount || 0}</span>
+            <div className="neu-inset p-3.5 border border-[#9EE2D4] bg-[#E6F4F1]/50">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#16866D]">Sent Jobs</span>
+              <span className="text-xl font-extrabold text-[#16866D]">{metrics.sentCount || 0}</span>
             </div>
 
-            <div className="p-3 rounded-md bg-slate-100 border border-slate-300">
-              <span className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Failed</span>
-              <span className="text-lg font-bold text-slate-700">{metrics.failedCount || 0}</span>
+            <div className="neu-inset p-3.5 border border-[#D4D9E2]">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#56616B]">Failed</span>
+              <span className="text-xl font-extrabold text-[#26323B]">{metrics.failedCount || 0}</span>
             </div>
 
-            <div className="p-3 rounded-md bg-rose-50 border border-rose-200 col-span-2 sm:col-span-1">
-              <span className="block text-xs font-medium text-rose-700 uppercase tracking-wider">DLQ Jobs</span>
-              <span className="text-lg font-bold text-rose-800">{metrics.dlqCount || 0}</span>
+            <div className="neu-inset p-3.5 border border-[#FECDCA] bg-[#FEEFEE]/50 col-span-2 sm:col-span-1">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#B42318]">DLQ Jobs</span>
+              <span className="text-xl font-extrabold text-[#B42318]">{metrics.dlqCount || 0}</span>
             </div>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Outbox Notification Logs Table */}
-      <div className="desk-card p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <h3 className="text-sm font-semibold text-slate-900">Recent Outbox Notification Jobs</h3>
-          <button onClick={fetchConsoleData} className="btn-secondary text-xs">
+      {/* Outbox Notification Logs Dense Table */}
+      <section className="neu-panel p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
+          <h2 className="text-base font-bold text-[#26323B]">Recent Notification Queue Logs</h2>
+          <button onClick={fetchConsoleData} className="neu-btn-secondary text-xs min-h-[44px]">
             Refresh Logs
           </button>
         </div>
 
         {loading ? (
-          <p className="text-xs text-slate-500 py-4">Loading notification queue logs...</p>
+          <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+            Loading notification queue logs…
+          </div>
         ) : logs.length === 0 ? (
-          <p className="text-xs text-slate-500 py-4">No outbox notification logs recorded.</p>
+          <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+            No notification logs recorded in outbox queue.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto rounded-xl border border-[#D4D9E2]">
+            <table className="w-full text-left text-xs border-collapse bg-white">
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
-                  <th className="py-2.5 px-3">Recipient</th>
-                  <th className="py-2.5 px-3">Channel</th>
-                  <th className="py-2.5 px-3">Template</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Attempts</th>
-                  <th className="py-2.5 px-3">Idempotency Key</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
+                <tr className="bg-[#EEF2F7] border-b border-[#D4D9E2] text-[#26323B] font-extrabold">
+                  <th className="py-3 px-4">Recipient</th>
+                  <th className="py-3 px-4">Channel</th>
+                  <th className="py-3 px-4">Template</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Attempts</th>
+                  <th className="py-3 px-4">Idempotency Key</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-[#D4D9E2]">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-medium text-slate-900">{log.recipient}</td>
-                    <td className="py-2.5 px-3 text-slate-600 font-mono text-[11px]">{log.channel}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{log.template}</td>
-                    <td className="py-2.5 px-3">
+                  <tr key={log.id} className="hover:bg-[#EEF2F7]/50 transition-colors">
+                    <td className="py-3 px-4 font-bold text-[#26323B]">{log.recipient}</td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#56616B]">{log.channel}</td>
+                    <td className="py-3 px-4 font-semibold text-[#26323B]">{log.template}</td>
+                    <td className="py-3 px-4">
                       <span
-                        className={`badge-${
+                        className={`clinical-badge-${
                           log.status === 'SENT'
-                            ? 'emerald'
+                            ? 'success'
                             : log.status === 'PROCESSING'
-                            ? 'amber'
+                            ? 'warning'
                             : log.status === 'DLQ'
-                            ? 'rose'
-                            : 'slate'
+                            ? 'danger'
+                            : 'neutral'
                         }`}
                       >
                         {log.status}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-600">{log.attempts} / {log.maxAttempts || 5}</td>
-                    <td className="py-2.5 px-3 font-mono text-[10px] text-slate-500">{log.idempotencyKey}</td>
-                    <td className="py-2.5 px-3 text-right">
+                    <td className="py-3 px-4 font-bold text-[#26323B]">{log.attempts} / {log.maxAttempts || 5}</td>
+                    <td className="py-3 px-4 font-mono text-[10px] text-[#66727D]">{log.idempotencyKey}</td>
+                    <td className="py-3 px-4 text-right">
                       {log.status === 'DLQ' && (
                         <button
                           onClick={() => handleRetryDlqJob(log.id)}
-                          className="btn-secondary text-[11px] py-1 px-2.5"
+                          className="neu-btn-secondary text-[11px] py-1.5 px-3 min-h-[36px]"
                         >
                           Re-queue DLQ
                         </button>
@@ -200,7 +207,7 @@ export default function AdminOutboxConsole() {
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
