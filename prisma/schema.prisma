@@ -128,3 +128,28 @@ model NotificationLog {
   @@index([status, nextRetryAt])
   @@index([claimToken])
 }
+
+model AiGenerationLog {
+  id               String   @id @default(uuid())
+  appointmentId    String?
+  patientId        String?
+  doctorId         String?
+  action           String   // "PRE_VISIT" or "POST_VISIT"
+  provider         String   // "openai", "mock", "test"
+  model            String
+  promptVersion    String   @default("1.0")
+  status           String   // "SUCCESS", "FAILED", "TIMEOUT"
+  requestId        String?
+  latencyMs        Int
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  inputHash        String
+  outputJson       String
+  errorReason      String?
+  createdAt        DateTime @default(now())
+
+  @@index([appointmentId])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([createdAt])
+}

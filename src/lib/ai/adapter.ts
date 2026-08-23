@@ -1,153 +1,289 @@
-import { z } from 'zod';
-import { PostVisitSummaryResult, SymptomSummaryResult } from '../types';
+import crypto from 'crypto';
+import { prisma } from '../prisma';
+import {
+  PreVisitSummary,
+  PreVisitSummarySchema,
+  PostVisitSummary,
+  PostVisitSummarySchema,
+  AiInvokeOptions,
+} from './types';
+import { callOpenAiPreVisit, callOpenAiPostVisit, redactPHI } from './openaiProvider';
 
-export const MEDICAL_DISCLAIMER =
-  'IMPORTANT MEDICAL NOTICE: This AI-generated summary is for clinical organization assistance only and does NOT constitute a medical diagnosis, prescription, or substitute for professional clinical judgment.';
+const PROMPT_VERSION = '1.0';
 
-export const PreVisitSummarySchema = z.object({
-  urgencyLevel: z.enum(['Low', 'Medium', 'High']),
-  chiefComplaint: z.string().min(3),
-  suggestedQuestions: z.array(z.string()).min(1),
-  summary: z.string().min(5),
-  disclaimer: z.string(),
-});
+// Simple sliding window rate limiter (10 AI requests per minute per user/key)
+const rateLimitMap = new Map<string, number[]>();
 
-export const PostVisitSummarySchema = z.object({
-  patientSummary: z.string().min(5),
-  medicationSchedule: z.string().min(5),
-  followUpSteps: z.string().min(5),
-  prescribedMedications: z.array(z.string()),
-  disclaimer: z.string(),
-});
+export function checkAiRateLimit(key: string, limit = 10, windowMs = 60000): boolean {
+  const now = Date.now();
+  const timestamps = (rateLimitMap.get(key) || []).filter((t) => now - t < windowMs);
+  if (timestamps.length >= limit) {
+    return false;
+  }
+  timestamps.push(now);
+  rateLimitMap.set(key, timestamps);
+  return true;
+}
 
-export async function invokePreVisitLLM(rawSymptoms: string): Promise<SymptomSummaryResult> {
-  const sanitizedInput = (rawSymptoms || '').slice(0, 2000).trim();
-  const provider = process.env.LLM_PROVIDER || 'mock';
+export function hashInput(text: string): string {
+  return crypto.createHash('sha256').update(text.trim().toLowerCase()).digest('hex').slice(0, 16);
+}
 
-  if (!sanitizedInput) {
-    return {
-      urgencyLevel: 'Low',
-      chiefComplaint: 'No symptoms provided',
-      suggestedQuestions: ['What brings you in today for a general checkup?'],
-      summary: 'No symptoms provided by patient.',
-      disclaimer: MEDICAL_DISCLAIMER,
-    };
+// ----------------------------------------------------------------------
+// PRE-VISIT INTAKE AI ADAPTER
+// ----------------------------------------------------------------------
+export async function invokePreVisitLLM(
+  symptoms: string,
+  options: AiInvokeOptions = {}
+): Promise<{ summary: PreVisitSummary; provider: string; model: string; auditId?: string }> {
+  const provider = options.overrideProvider || process.env.LLM_PROVIDER || 'mock';
+  const truncatedSymptoms = symptoms.slice(0, 2000);
+  const inputHash = hashInput(truncatedSymptoms);
+  const startTime = Date.now();
+
+  const rateLimitKey = options.patientId || 'anonymous-previsit';
+  if (!checkAiRateLimit(rateLimitKey)) {
+    throw new Error('AI rate limit exceeded. Please wait 1 minute before submitting another request.');
   }
 
-  if (provider === 'mock') {
-    return generateMockPreVisitSummary(sanitizedInput);
-  }
+  let resultData: PreVisitSummary | null = null;
+  let modelName = 'mock-v1';
+  let latencyMs = 0;
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let requestId: string | undefined;
+  let status = 'SUCCESS';
+  let errorReason: string | undefined;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const apiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      clearTimeout(timeoutId);
-      return generateMockPreVisitSummary(sanitizedInput);
+    if (provider === 'openai') {
+      const openAiRes = await callOpenAiPreVisit(truncatedSymptoms);
+      resultData = openAiRes.data;
+      modelName = openAiRes.model;
+      latencyMs = openAiRes.latencyMs;
+      promptTokens = openAiRes.tokens.prompt;
+      completionTokens = openAiRes.tokens.completion;
+      requestId = openAiRes.requestId;
+    } else if (provider === 'test') {
+      latencyMs = Date.now() - startTime;
+      modelName = 'test-provider-v1';
+      if (options.testOutput) {
+        resultData = PreVisitSummarySchema.parse(options.testOutput);
+      } else {
+        resultData = {
+          urgencyLevel: 'Low',
+          chiefComplaint: 'Automated test symptom evaluation',
+          suggestedQuestions: ['What is the duration of symptoms?', 'Have you taken OTC remedies?'],
+          redFlagsIdentified: [],
+          summary: 'Test provider symptom summary.',
+          disclaimer: 'AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.',
+        };
+      }
+    } else {
+      // Mock provider for offline development
+      latencyMs = Date.now() - startTime;
+      modelName = 'mock-clinical-triage-v1';
+      const isUrgent = /chest pain|shortness of breath|severe bleeding|fainting/i.test(symptoms);
+      resultData = {
+        urgencyLevel: isUrgent ? 'High' : 'Low',
+        chiefComplaint: isUrgent ? 'Urgent Symptom Complaint' : 'General Symptom Evaluation',
+        suggestedQuestions: [
+          'When did these symptoms first manifest?',
+          'Have you experienced similar symptoms before?',
+          'Do you have relevant medical history or allergies?',
+        ],
+        redFlagsIdentified: isUrgent ? ['Potentially severe symptom pattern detected'] : [],
+        summary: `Pre-visit preparation notes generated for symptom pattern: ${redactPHI(truncatedSymptoms.slice(0, 100))}`,
+        disclaimer: 'AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.',
+      };
     }
+  } catch (err: any) {
+    latencyMs = Date.now() - startTime;
+    status = 'FAILED';
+    errorReason = err.message || 'LLM provider failure';
 
-    clearTimeout(timeoutId);
-    return generateMockPreVisitSummary(sanitizedInput);
-  } catch (error) {
-    console.warn('[AI Adapter Warning] LLM Provider call failed or timed out. Falling back to deterministic summary.');
-    return {
-      urgencyLevel: 'Medium',
-      chiefComplaint: sanitizedInput,
-      suggestedQuestions: [
-        'How long have you experienced these symptoms?',
-        'Does anything aggravate or relieve the discomfort?',
-        'Are you currently taking any prescription medications?',
-      ],
-      summary: `[Automated Fallback] Symptom Intake: ${sanitizedInput}`,
-      disclaimer: MEDICAL_DISCLAIMER,
-    };
+    // Persist audit failure record
+    await prisma.aiGenerationLog.create({
+      data: {
+        appointmentId: options.appointmentId || null,
+        patientId: options.patientId || null,
+        doctorId: options.doctorId || null,
+        action: 'PRE_VISIT',
+        provider,
+        model: modelName,
+        promptVersion: PROMPT_VERSION,
+        status: 'FAILED',
+        latencyMs,
+        inputHash,
+        outputJson: JSON.stringify({ error: errorReason }),
+        errorReason,
+      },
+    });
+
+    if (provider === 'openai') {
+      throw new Error(`Live AI Provider Error: ${errorReason}`);
+    } else {
+      throw err;
+    }
   }
+
+  // Persist Audit Record
+  const auditRecord = await prisma.aiGenerationLog.create({
+    data: {
+      appointmentId: options.appointmentId || null,
+      patientId: options.patientId || null,
+      doctorId: options.doctorId || null,
+      action: 'PRE_VISIT',
+      provider,
+      model: modelName,
+      promptVersion: PROMPT_VERSION,
+      status: 'SUCCESS',
+      requestId: requestId || null,
+      latencyMs,
+      promptTokens,
+      completionTokens,
+      inputHash,
+      outputJson: JSON.stringify(resultData),
+    },
+  });
+
+  return {
+    summary: resultData!,
+    provider,
+    model: modelName,
+    auditId: auditRecord.id,
+  };
 }
 
-export async function invokePostVisitLLM(consultNotes: string): Promise<PostVisitSummaryResult> {
-  const sanitizedNotes = (consultNotes || '').slice(0, 2000).trim();
-  const provider = process.env.LLM_PROVIDER || 'mock';
+// ----------------------------------------------------------------------
+// POST-VISIT CLINICAL AI ADAPTER
+// ----------------------------------------------------------------------
+export async function invokePostVisitLLM(
+  consultationNotes: string,
+  options: AiInvokeOptions = {}
+): Promise<{ summary: PostVisitSummary; provider: string; model: string; auditId?: string }> {
+  const provider = options.overrideProvider || process.env.LLM_PROVIDER || 'mock';
+  const truncatedNotes = consultationNotes.slice(0, 2000);
+  const inputHash = hashInput(truncatedNotes);
+  const startTime = Date.now();
 
-  if (!sanitizedNotes) {
-    return {
-      patientSummary: 'Standard consultation completed.',
-      medicationSchedule: 'No new medications prescribed.',
-      followUpSteps: 'Follow standard recovery guidance and stay hydrated.',
-      prescribedMedications: [],
-      disclaimer: MEDICAL_DISCLAIMER,
-    };
+  const rateLimitKey = options.doctorId || 'anonymous-postvisit';
+  if (!checkAiRateLimit(rateLimitKey)) {
+    throw new Error('AI rate limit exceeded. Please wait 1 minute before submitting another request.');
   }
 
-  if (provider === 'mock') {
-    return generateMockPostVisitSummary(sanitizedNotes);
-  }
+  let resultData: PostVisitSummary | null = null;
+  let modelName = 'mock-v1';
+  let latencyMs = 0;
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let requestId: string | undefined;
+  let status = 'SUCCESS';
+  let errorReason: string | undefined;
 
   try {
-    return generateMockPostVisitSummary(sanitizedNotes);
-  } catch {
-    return {
-      patientSummary: `[Automated Fallback] Consultation Notes: ${sanitizedNotes}`,
-      medicationSchedule: 'Take prescribed medications as indicated by your physician.',
-      followUpSteps: 'Please consult your doctor if symptoms worsen or persist.',
-      prescribedMedications: [],
-      disclaimer: MEDICAL_DISCLAIMER,
-    };
+    if (provider === 'openai') {
+      const openAiRes = await callOpenAiPostVisit(truncatedNotes);
+      resultData = openAiRes.data;
+      modelName = openAiRes.model;
+      latencyMs = openAiRes.latencyMs;
+      promptTokens = openAiRes.tokens.prompt;
+      completionTokens = openAiRes.tokens.completion;
+      requestId = openAiRes.requestId;
+    } else if (provider === 'test') {
+      latencyMs = Date.now() - startTime;
+      modelName = 'test-provider-v1';
+      if (options.testOutput) {
+        resultData = PostVisitSummarySchema.parse(options.testOutput);
+      } else {
+        resultData = {
+          patientInstructions: ['Follow doctor notes as discussed during consultation.'],
+          medicationSummary: [],
+          followUpSchedule: 'As needed',
+          summary: 'Test provider post-visit summary.',
+          disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer to direct doctor advice.',
+        };
+      }
+    } else {
+      // Mock provider: Summarizes ONLY provided notes without inventing non-existent medications
+      latencyMs = Date.now() - startTime;
+      modelName = 'mock-clinical-postvisit-v1';
+
+      // Parse explicitly mentioned medications if present in notes
+      const meds: any[] = [];
+      const amoxMatch = truncatedNotes.match(/amoxicillin\s*(\d+mg)?/i);
+      if (amoxMatch) {
+        meds.push({
+          medication: 'Amoxicillin',
+          dosage: amoxMatch[1] || '500mg',
+          frequency: 'As prescribed by physician',
+          instructions: 'Take with food and complete full course',
+        });
+      }
+
+      resultData = {
+        patientInstructions: [
+          'Rest and drink plenty of fluids.',
+          'Contact the clinic if symptoms worsen or fail to improve.',
+        ],
+        medicationSummary: meds,
+        followUpSchedule: truncatedNotes.toLowerCase().includes('2 weeks') ? 'In 2 weeks' : 'As needed',
+        summary: `Clinical Summary based on consultation notes: ${redactPHI(truncatedNotes.slice(0, 150))}`,
+        disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer to direct doctor advice.',
+      };
+    }
+  } catch (err: any) {
+    latencyMs = Date.now() - startTime;
+    status = 'FAILED';
+    errorReason = err.message || 'LLM provider failure';
+
+    await prisma.aiGenerationLog.create({
+      data: {
+        appointmentId: options.appointmentId || null,
+        patientId: options.patientId || null,
+        doctorId: options.doctorId || null,
+        action: 'POST_VISIT',
+        provider,
+        model: modelName,
+        promptVersion: PROMPT_VERSION,
+        status: 'FAILED',
+        latencyMs,
+        inputHash,
+        outputJson: JSON.stringify({ error: errorReason }),
+        errorReason,
+      },
+    });
+
+    if (provider === 'openai') {
+      throw new Error(`Live AI Provider Error: ${errorReason}`);
+    } else {
+      throw err;
+    }
   }
-}
 
-function generateMockPreVisitSummary(input: string): SymptomSummaryResult {
-  const isChest = /chest|breath|cardio|heart/i.test(input);
-  const isNeuro = /headache|migraine|dizzy|numbness/i.test(input);
-
-  const urgencyLevel: 'Low' | 'Medium' | 'High' = isChest ? 'High' : isNeuro ? 'Medium' : 'Low';
-  const chiefComplaint = isChest
-    ? 'Cardiovascular / Respiratory Discomfort'
-    : isNeuro
-    ? 'Neurological Discomfort & Cranial Symptoms'
-    : 'Primary General Symptom Complaint';
-
-  const suggestedQuestions = isChest
-    ? [
-        'When did the chest pressure or shortness of breath start?',
-        'Do you feel pain radiating to your arm, neck, or back?',
-        'Have you noticed swelling in your legs or ankles?',
-      ]
-    : isNeuro
-    ? [
-        'Are symptoms accompanied by visual changes or aura?',
-        'How frequent are the episodes of dizziness or headaches?',
-        'Have you experienced localized numbness or muscle weakness?',
-      ]
-    : [
-        'How long have you experienced these symptoms?',
-        'Have you taken any over-the-counter treatments?',
-        'Do you have any related medical history or allergies?',
-      ];
-
-  const summary = `Prompt: "Analyse these symptoms and return: urgency level (Low / Medium / High), chief complaint, and three suggested questions for the doctor. Symptoms: ${input}"`;
-
-  return PreVisitSummarySchema.parse({
-    urgencyLevel,
-    chiefComplaint,
-    suggestedQuestions,
-    summary,
-    disclaimer: MEDICAL_DISCLAIMER,
+  const auditRecord = await prisma.aiGenerationLog.create({
+    data: {
+      appointmentId: options.appointmentId || null,
+      patientId: options.patientId || null,
+      doctorId: options.doctorId || null,
+      action: 'POST_VISIT',
+      provider,
+      model: modelName,
+      promptVersion: PROMPT_VERSION,
+      status: 'SUCCESS',
+      requestId: requestId || null,
+      latencyMs,
+      promptTokens,
+      completionTokens,
+      inputHash,
+      outputJson: JSON.stringify(resultData),
+    },
   });
-}
 
-function generateMockPostVisitSummary(notes: string): PostVisitSummaryResult {
-  const hasMeds = notes.toLowerCase().includes('med') || notes.toLowerCase().includes('prescribe');
-  const prescribedMedications = hasMeds ? ['Amoxicillin 500mg (1 tablet every 8 hours)', 'Paracetamol 500mg (as needed)'] : [];
-
-  return PostVisitSummarySchema.parse({
-    patientSummary: `Patient-friendly summary based on doctor notes: ${notes}`,
-    medicationSchedule: hasMeds
-      ? 'Amoxicillin 500mg: 1 tablet every 8 hours with water. Paracetamol 500mg: 1 tablet every 6 hours as needed for fever/pain.'
-      : 'No new prescription medications required. Maintain rest and hydration.',
-    followUpSteps: 'Schedule a follow-up consultation in 10-14 days if symptoms do not improve fully.',
-    prescribedMedications,
-    disclaimer: MEDICAL_DISCLAIMER,
-  });
+  return {
+    summary: resultData!,
+    provider,
+    model: modelName,
+    auditId: auditRecord.id,
+  };
 }

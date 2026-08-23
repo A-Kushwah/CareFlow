@@ -4,21 +4,21 @@ import { useState, useEffect } from 'react';
 
 export default function DoctorPortal() {
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingAppts, setLoadingAppts] = useState(true);
   const [selectedAppt, setSelectedAppt] = useState<any | null>(null);
-  const [consultNotes, setConsultNotes] = useState('');
+  const [notes, setNotes] = useState('');
   const [generatingAi, setGeneratingAi] = useState(false);
-  const [submittingNotes, setSubmittingNotes] = useState(false);
-  const [aiPostSummary, setAiPostSummary] = useState<any | null>(null);
-  const [leaveStart, setLeaveStart] = useState('');
-  const [leaveEnd, setLeaveEnd] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [generatedSummary, setGeneratedSummary] = useState<any | null>(null);
+
+  const [leaveStartDate, setLeaveStartDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
   const [submittingLeave, setSubmittingLeave] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [leaveMsg, setLeaveMsg] = useState('');
 
-  const fetchSchedule = () => {
-    setLoading(true);
+  const fetchAppointments = () => {
+    setLoadingAppts(true);
     fetch('/api/appointments')
       .then((res) => res.json())
       .then((data) => {
@@ -26,258 +26,185 @@ export default function DoctorPortal() {
           setAppointments(data.appointments);
         }
       })
-      .finally(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => setLoadingAppts(false));
   };
 
   useEffect(() => {
-    fetchSchedule();
+    fetchAppointments();
   }, []);
 
   const handleGeneratePostVisit = async () => {
-    if (!consultNotes.trim()) {
-      setErrorMsg('Please enter consultation notes first');
+    if (!selectedAppt || !notes.trim()) {
+      setAiError('Please enter clinical consultation notes before generating instructions.');
       return;
     }
 
     setGeneratingAi(true);
-    setErrorMsg('');
+    setAiError('');
 
     try {
       const res = await fetch('/api/ai/post-visit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: consultNotes }),
+        body: JSON.stringify({
+          appointmentId: selectedAppt.id,
+          notes,
+        }),
       });
 
       const data = await res.json();
-      if (res.ok && data.summary) {
-        setAiPostSummary(data.summary);
-      } else {
-        setErrorMsg(data.error || 'Failed to generate post-visit summary');
+      if (!res.ok) {
+        setAiError(data.error || 'Failed to generate post-visit instructions.');
+        setGeneratingAi(false);
+        return;
       }
+
+      setGeneratedSummary(data.summary);
+      fetchAppointments();
     } catch {
-      setErrorMsg('AI post-visit request failed');
+      setAiError('AI Provider service unavailable. Please retry or enter manual instructions.');
     } finally {
       setGeneratingAi(false);
     }
   };
 
-  const handleCompleteConsultation = async () => {
-    if (!selectedAppt || !consultNotes.trim()) {
-      setErrorMsg('Consultation notes are required');
-      return;
-    }
-
-    setSubmittingNotes(true);
-    setErrorMsg('');
-
-    try {
-      // Complete appointment update
-      fetchSchedule();
-      setSelectedAppt(null);
-      setConsultNotes('');
-      setAiPostSummary(null);
-      setMsg('Consultation completed and patient post-visit summary recorded.');
-      setTimeout(() => setMsg(''), 5000);
-    } catch {
-      setErrorMsg('Failed to record completed consultation');
-    } finally {
-      setSubmittingNotes(false);
-    }
-  };
-
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leaveStart || !leaveEnd || !leaveReason) {
-      setErrorMsg('Please enter leave start date, end date, and reason');
-      return;
-    }
+    if (!leaveStartDate || !leaveEndDate || !leaveReason) return;
 
     setSubmittingLeave(true);
-    setErrorMsg('');
+    setLeaveMsg('');
 
     try {
       const res = await fetch('/api/doctors/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: leaveStart,
-          endDate: leaveEnd,
+          startDate: leaveStartDate,
+          endDate: leaveEndDate,
           reason: leaveReason,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setMsg(`Doctor leave recorded. ${data.cancelledAppointmentsCount || 0} conflicting appointments cancelled.`);
-        setLeaveStart('');
-        setLeaveEnd('');
+        setLeaveMsg(`Leave registered successfully. ${data.cancelledAppointmentsCount} conflicting appointments cancelled.`);
+        setLeaveStartDate('');
+        setLeaveEndDate('');
         setLeaveReason('');
-        fetchSchedule();
-        setTimeout(() => setMsg(''), 6000);
+        fetchAppointments();
       } else {
-        setErrorMsg(data.error || 'Failed to submit leave');
+        setLeaveMsg(data.error || 'Failed to submit leave');
       }
     } catch {
-      setErrorMsg('Network error submitting leave request');
+      setLeaveMsg('Error submitting leave');
     } finally {
       setSubmittingLeave(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {msg && (
-        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
-          {msg}
+    <div className="max-w-7xl mx-auto px-6 py-4 space-y-6">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Doctor Clinical Workbench</h2>
+          <p className="text-xs text-slate-500">Manage patient consultations, post-visit notes, and schedule leave</p>
         </div>
-      )}
+        <button onClick={fetchAppointments} className="btn-secondary text-xs">
+          Refresh Queue
+        </button>
+      </div>
 
-      {errorMsg && (
-        <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
-          {errorMsg}
+      {leaveMsg && (
+        <div className="p-3 bg-emerald-50 border-l-4 border-emerald-600 text-slate-800 text-xs font-medium rounded-r">
+          {leaveMsg}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Schedule List */}
-        <div className="lg:col-span-2 desk-card p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">Clinical Consultation Schedule</h2>
-              <p className="text-xs text-slate-500">View today's patient queue and intake preparation.</p>
-            </div>
-            <button onClick={fetchSchedule} className="btn-secondary text-xs">
-              Refresh
-            </button>
-          </div>
+        {/* Appointments Queue */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide">
+              Scheduled Patient Consultations
+            </h3>
 
-          {loading ? (
-            <p className="text-xs text-slate-500 py-4">Loading patient schedule...</p>
-          ) : appointments.length === 0 ? (
-            <p className="text-xs text-slate-500 py-4">No scheduled appointments for this doctor.</p>
-          ) : (
-            <div className="space-y-3">
-              {appointments.map((appt) => {
-                const timeStr = `${new Date(appt.startTime).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })} - ${new Date(appt.endTime).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}`;
+            {loadingAppts ? (
+              <div className="p-6 text-center text-slate-500 text-xs">Loading patient schedule...</div>
+            ) : appointments.length === 0 ? (
+              <div className="p-6 text-center text-slate-500 text-xs">No scheduled appointments for this doctor profile.</div>
+            ) : (
+              <div className="space-y-2">
+                {appointments.map((appt) => {
+                  const startTimeStr = new Date(appt.startTime).toLocaleString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
 
-                const dateStr = new Date(appt.startTime).toLocaleDateString();
-
-                return (
-                  <div
-                    key={appt.id}
-                    className="p-4 rounded-md border border-slate-200 bg-white space-y-2 hover:border-slate-300 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">
-                          {appt.patient?.name || 'Patient Consultation'}
-                        </h4>
-                        <p className="text-xs text-slate-500">
-                          {dateStr} • {timeStr}
-                        </p>
-                      </div>
-                      <span
-                        className={`badge-${
-                          appt.status === 'CONFIRMED'
-                            ? 'emerald'
-                            : appt.status === 'COMPLETED'
-                            ? 'slate'
-                            : 'rose'
-                        }`}
-                      >
-                        {appt.status}
-                      </span>
-                    </div>
-
-                    {appt.symptoms && (
-                      <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded border border-slate-200">
-                        <strong>Patient Symptoms:</strong> {appt.symptoms}
-                      </p>
-                    )}
-
-                    {appt.aiPreSummary && (
-                      <div className="text-xs text-slate-800 bg-slate-50 p-3 rounded-md border border-slate-200 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <strong className="text-slate-900 text-[11px] uppercase tracking-wider">
-                            Visit Preparation Summary
-                          </strong>
-                          {(() => {
-                            try {
-                              const parsed = JSON.parse(appt.aiPreSummary);
-                              return (
-                                <span
-                                  className={`badge-${
-                                    parsed.urgencyLevel === 'High'
-                                      ? 'rose'
-                                      : parsed.urgencyLevel === 'Medium'
-                                      ? 'amber'
-                                      : 'emerald'
-                                  }`}
-                                >
-                                  Urgency: {parsed.urgencyLevel}
-                                </span>
-                              );
-                            } catch {
-                              return null;
-                            }
-                          })()}
+                  return (
+                    <div
+                      key={appt.id}
+                      className="p-3 border border-slate-200 rounded hover:border-slate-400 transition-all flex items-center justify-between bg-slate-50/50"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-semibold text-slate-900">
+                            {appt.patient?.name || 'Patient'}
+                          </span>
+                          <span
+                            className={`badge-${
+                              appt.status === 'CONFIRMED'
+                                ? 'emerald'
+                                : appt.status === 'CANCELLED'
+                                ? 'rose'
+                                : 'slate'
+                            }`}
+                          >
+                            {appt.status}
+                          </span>
                         </div>
-                        <p className="text-slate-600">
-                          {(() => {
-                            try {
-                              const parsed = JSON.parse(appt.aiPreSummary);
-                              return `Chief Complaint: ${parsed.chiefComplaint || parsed.summary}`;
-                            } catch {
-                              return appt.aiPreSummary;
-                            }
-                          })()}
-                        </p>
+                        <p className="text-[11px] text-slate-500">{startTimeStr}</p>
+                        {appt.symptoms && (
+                          <p className="text-xs text-slate-700 italic">"Symptoms: {appt.symptoms}"</p>
+                        )}
                       </div>
-                    )}
 
-                    {appt.status === 'CONFIRMED' && (
                       <button
                         onClick={() => {
                           setSelectedAppt(appt);
-                          setConsultNotes(appt.consultNotes || '');
+                          setNotes(appt.consultNotes || '');
+                          setGeneratedSummary(appt.aiPostSummary ? JSON.parse(appt.aiPostSummary) : null);
+                          setAiError('');
                         }}
-                        className="btn-primary text-xs mt-2"
+                        className="btn-secondary text-xs"
                       >
-                        Complete Consultation Notes
+                        {appt.aiPostSummary ? 'View/Edit Notes' : 'Clinical Summary'}
                       </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Schedule Action & Leave Management Panel */}
-        <div className="space-y-6">
-          <div className="desk-card p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2">
-              Schedule Action: Submit Leave
+        {/* Leave Application Form */}
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide">
+              Submit Doctor Leave
             </h3>
-            <p className="text-xs text-slate-500">
-              Submit planned leave dates. Any conflicting patient bookings will be cancelled and notified via outbox.
-            </p>
-
-            <form onSubmit={handleApplyLeave} className="space-y-3 pt-2">
+            <form onSubmit={handleApplyLeave} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Start Date:</label>
                 <input
                   type="date"
-                  value={leaveStart}
-                  onChange={(e) => setLeaveStart(e.target.value)}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  value={leaveStartDate}
+                  onChange={(e) => setLeaveStartDate(e.target.value)}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
                 />
               </div>
 
@@ -285,9 +212,9 @@ export default function DoctorPortal() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">End Date:</label>
                 <input
                   type="date"
-                  value={leaveEnd}
-                  onChange={(e) => setLeaveEnd(e.target.value)}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  value={leaveEndDate}
+                  onChange={(e) => setLeaveEndDate(e.target.value)}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
                 />
               </div>
 
@@ -295,19 +222,15 @@ export default function DoctorPortal() {
                 <label className="block text-xs font-medium text-slate-700 mb-1">Reason:</label>
                 <input
                   type="text"
-                  placeholder="e.g. Annual Medical Leave"
                   value={leaveReason}
                   onChange={(e) => setLeaveReason(e.target.value)}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  placeholder="e.g. Medical conference, Personal leave"
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submittingLeave}
-                className="w-full btn-secondary text-xs font-medium"
-              >
-                {submittingLeave ? 'Submitting Leave...' : 'Submit Leave Schedule'}
+              <button type="submit" disabled={submittingLeave} className="w-full btn-primary text-xs">
+                {submittingLeave ? 'Submitting...' : 'Register Leave'}
               </button>
             </form>
           </div>
@@ -316,78 +239,106 @@ export default function DoctorPortal() {
 
       {/* Consultation Notes Modal */}
       {selectedAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="desk-card max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="bg-white border border-slate-200 rounded-lg max-w-xl w-full p-5 space-y-4 shadow-lg">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Post-Visit Clinical Documentation</h3>
-                <p className="text-xs text-slate-500">
-                  {selectedAppt.patient?.name || 'Patient'} • Consultation Record
-                </p>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Consultation Notes — {selectedAppt.patient?.name}
+                </h3>
+                <p className="text-xs text-slate-500">Enter doctor observations to generate patient instructions</p>
               </div>
               <button
-                onClick={() => setSelectedAppt(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                onClick={() => {
+                  setSelectedAppt(null);
+                  setGeneratedSummary(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 font-bold text-base"
               >
                 ×
               </button>
             </div>
 
+            {aiError && (
+              <div className="p-3 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium space-y-1">
+                <p>{aiError}</p>
+                <button
+                  onClick={handleGeneratePostVisit}
+                  className="text-xs text-rose-900 underline font-semibold"
+                >
+                  Retry Provider Generation
+                </button>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Doctor Clinical Notes & Prescription:
+                  Doctor Consultation Notes:
                 </label>
                 <textarea
                   rows={4}
-                  value={consultNotes}
-                  onChange={(e) => setConsultNotes(e.target.value)}
-                  placeholder="Enter diagnosis, clinical observations, and prescribed medications..."
-                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Diagnosed with acute sinusitis. Prescribed Amoxicillin 500mg once daily for 7 days. Advised bed rest..."
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded focus:outline-none focus:border-slate-900"
                 />
               </div>
 
-              {!aiPostSummary && (
-                <button
-                  onClick={handleGeneratePostVisit}
-                  disabled={generatingAi || !consultNotes.trim()}
-                  className="w-full btn-secondary text-xs font-medium"
-                >
-                  {generatingAi ? 'Generating clinical summary...' : 'Generate Patient Summary'}
-                </button>
-              )}
+              <button
+                onClick={handleGeneratePostVisit}
+                disabled={generatingAi || !notes.trim()}
+                className="w-full btn-secondary text-xs"
+              >
+                {generatingAi ? 'Generating structured instructions...' : 'Generate Patient Summary'}
+              </button>
 
-              {aiPostSummary && (
-                <div className="p-4 rounded-md bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                  <span className="font-semibold text-slate-900 uppercase text-[10px] tracking-wider block">
-                    Patient-Friendly Clinical Summary
+              {generatedSummary && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2 text-xs">
+                  <span className="font-semibold text-slate-900 text-xs block">
+                    Structured Patient Instructions
                   </span>
-                  <p className="text-slate-700">
-                    <strong>Summary:</strong> {aiPostSummary.patientSummary}
-                  </p>
-                  <p className="text-slate-700">
-                    <strong>Medication Schedule:</strong> {aiPostSummary.medicationSchedule}
-                  </p>
-                  <p className="text-slate-700">
-                    <strong>Follow-up Steps:</strong> {aiPostSummary.followUpSteps}
-                  </p>
-                  <p className="text-[10px] text-slate-400 italic pt-2 border-t border-slate-200">
-                    {aiPostSummary.disclaimer}
-                  </p>
+
+                  {generatedSummary.patientInstructions?.length > 0 && (
+                    <div>
+                      <strong className="text-slate-800 block mb-0.5 text-[11px] uppercase">Instructions:</strong>
+                      <ul className="list-disc list-inside space-y-0.5 text-slate-700 text-xs">
+                        {generatedSummary.patientInstructions.map((ins: string, i: number) => (
+                          <li key={i}>{ins}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {generatedSummary.medicationSummary?.length > 0 && (
+                    <div>
+                      <strong className="text-slate-800 block mb-0.5 text-[11px] uppercase">Prescribed Medications:</strong>
+                      <div className="space-y-1">
+                        {generatedSummary.medicationSummary.map((m: any, i: number) => (
+                          <div key={i} className="p-2 bg-white border border-slate-200 rounded text-[11px]">
+                            <strong>{m.medication}</strong> ({m.dosage}) — {m.frequency}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-slate-500 italic pt-2 border-t border-slate-200">
+                    {generatedSummary.disclaimer}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200">
-              <button onClick={() => setSelectedAppt(null)} className="btn-secondary text-xs">
-                Cancel
-              </button>
+            <div className="flex items-center justify-end pt-3 border-t border-slate-200">
               <button
-                onClick={handleCompleteConsultation}
-                disabled={submittingNotes || !consultNotes.trim()}
+                onClick={() => {
+                  setSelectedAppt(null);
+                  setGeneratedSummary(null);
+                }}
                 className="btn-primary text-xs"
               >
-                {submittingNotes ? 'Saving Record...' : 'Complete & Save Record'}
+                Close Workbench
               </button>
             </div>
           </div>
