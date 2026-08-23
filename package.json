@@ -11,6 +11,7 @@
     "db:push": "prisma db push --schema=prisma/schema.sqlite.prisma",
     "db:seed": "node prisma/seed.js",
     "db:seed:local": "prisma generate --schema=prisma/schema.sqlite.prisma && node prisma/seed.js",
+    "db:seed:postgres": "prisma generate --schema=prisma/schema.prisma && node prisma/seed.js",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:studio:local": "prisma studio --schema=prisma/schema.sqlite.prisma",
