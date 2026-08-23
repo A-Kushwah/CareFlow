@@ -4,14 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema=prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "next lint",
+    "db:generate:local": "prisma generate --schema=prisma/schema.sqlite.prisma",
     "db:push": "prisma db push --schema=prisma/schema.sqlite.prisma",
+    "db:seed": "node prisma/seed.js",
+    "db:seed:local": "prisma generate --schema=prisma/schema.sqlite.prisma && node prisma/seed.js",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js",
-    "test": "tsx --test --test-concurrency=1 tests/*.test.ts"
+    "test": "prisma generate --schema=prisma/schema.sqlite.prisma && tsx --test --test-concurrency=1 tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

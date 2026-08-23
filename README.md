@@ -55,11 +55,11 @@ cd unthinkable-healthcare-appointment
 npm install
 
 # 2. Setup SQLite database & seed demo accounts
-npx prisma generate
-npx prisma db push --accept-data-loss
-node prisma/seed.js
+npm run db:generate:local
+npm run db:push
+npm run db:seed:local
 
-# 3. Execute automated test suite (28 tests)
+# 3. Execute automated test suite (33 tests)
 npm test
 
 # 4. Start Next.js development server
@@ -109,7 +109,7 @@ To graduate from prototype to full production deployment:
 - [x] Live OpenAI SDK integration with strict JSON Schema Structured Outputs.
 - [x] Audit record logging (`AiGenerationLog`) with latency and token tracking.
 - [x] Server-side role authorization & doctor/patient ownership enforcement.
-- [ ] Deploy managed PostgreSQL database and run `prisma migrate deploy`.
+- [ ] Deploy managed PostgreSQL database and run `npm run db:migrate:deploy`.
 - [ ] Configure production environment variables (`LLM_PROVIDER=openai`, `OPENAI_API_KEY`).
 - [ ] Connect Redis/Upstash for distributed rate limiting across serverless instances.
 - [ ] Enable HTTPS-only secure cookie policies in production.
@@ -118,6 +118,6 @@ To graduate from prototype to full production deployment:
 
 ## Test & Build Results
 
-- **Automated Test Suite**: **28/28 Passed** (`npm test`)
+- **Automated Test Suite**: **33/33 Passed** (`npm test`)
 - **TypeScript Typecheck**: **0 Errors** (`npx tsc --noEmit`)
 - **Next.js Production Build**: `✓ Compiled successfully (22/22 static pages)`
