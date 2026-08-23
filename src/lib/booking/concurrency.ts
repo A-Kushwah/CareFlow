@@ -75,7 +75,8 @@ export async function confirmAppointmentTransaction(
   startTimeISO: string,
   endTimeISO: string,
   symptoms?: string,
-  aiPreSummary?: string
+  aiPreSummary?: string,
+  holdId?: string
 ) {
   const startTime = new Date(startTimeISO);
   const endTime = new Date(endTimeISO);
@@ -142,14 +143,20 @@ export async function confirmAppointmentTransaction(
       },
     });
 
-    // 6. Delete temporary holds for this slot
-    await tx.slotHold.deleteMany({
-      where: {
-        doctorId,
-        startTime,
-        endTime,
-      },
-    });
+    // 6. Atomically delete the exact confirmed hold (or all matching slot holds)
+    if (holdId) {
+      await tx.slotHold.deleteMany({
+        where: { id: holdId },
+      });
+    } else {
+      await tx.slotHold.deleteMany({
+        where: {
+          doctorId,
+          startTime,
+          endTime,
+        },
+      });
+    }
 
     // 7. Enqueue Email Outbox Notification
     const emailPayload = JSON.stringify({

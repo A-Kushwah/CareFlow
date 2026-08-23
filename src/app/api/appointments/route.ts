@@ -86,7 +86,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
-    // 1. Verify session user exists in database
+    // Explicit Role Rejection: Doctors cannot book appointments as patients
+    if (session.role !== Role.PATIENT && session.role !== Role.ADMIN) {
+      return NextResponse.json(
+        { error: 'Only patients can book appointments' },
+        { status: 403 }
+      );
+    }
+
+    // Verify session user exists in database
     const sessionUser = await prisma.user.findUnique({ where: { id: session.userId } });
     if (!sessionUser) {
       return NextResponse.json({ error: 'Authenticated patient account not found' }, { status: 404 });
@@ -101,7 +109,7 @@ export async function POST(req: Request) {
 
     const targetPatientId = session.role === Role.PATIENT ? session.userId : (validated.patientId || session.userId);
 
-    // If holdId is provided, validate hold status & ownership
+    // If holdId is provided, validate hold status, ownership, and pass exact holdId to transaction
     if (validated.holdId) {
       const hold = await prisma.slotHold.findUnique({ where: { id: validated.holdId } });
       if (!hold) {
@@ -126,7 +134,9 @@ export async function POST(req: Request) {
         hold.doctorId,
         hold.startTime.toISOString(),
         hold.endTime.toISOString(),
-        validated.symptoms
+        validated.symptoms,
+        undefined,
+        hold.id
       );
       return NextResponse.json({ success: true, appointment: appt });
     }
@@ -154,7 +164,6 @@ export async function POST(req: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues[0]?.message || 'Validation error' }, { status: 400 });
     }
-    // Clean user-friendly message, preventing raw Prisma stack trace exposure
     const rawMsg = err.message || '';
     if (rawMsg.includes('Patient or Doctor profile not found')) {
       return NextResponse.json({ error: 'Authenticated patient account not found' }, { status: 404 });
