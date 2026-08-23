@@ -16,6 +16,9 @@
     "db:studio:local": "prisma studio --schema=prisma/schema.sqlite.prisma",
     "test": "prisma generate --schema=prisma/schema.sqlite.prisma && tsx --test --test-concurrency=1 tests/*.test.ts"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "clsx": "^2.1.1",
