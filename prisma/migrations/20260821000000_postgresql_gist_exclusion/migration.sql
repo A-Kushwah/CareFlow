@@ -1,5 +1,5 @@
--- PostgreSQL GiST Exclusion Constraint Migration for Appointment Overlap Prevention
--- Execute on PostgreSQL production deployments to enforce double-booking prevention at the database engine layer.
+-- Migration 2: PostgreSQL GiST Exclusion Constraint for Appointment Overlap Prevention
+-- Runs after Appointment table creation in Migration 1 (20260820000000_init_postgresql_schema)
 
 -- 1. Enable btree_gist extension required for multi-column GiST exclusion constraints
 CREATE EXTENSION IF NOT EXISTS btree_gist;

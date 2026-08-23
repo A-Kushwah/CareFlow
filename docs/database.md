@@ -24,6 +24,7 @@ erDiagram
         string passwordHash
         string name
         string role
+        boolean isTestFixture
         datetime createdAt
     }
 
@@ -34,6 +35,8 @@ erDiagram
         float consultFee
         int slotDurationMin
         int bufferTimeMin
+        boolean isPublished
+        boolean isTestFixture
     }
 
     WorkingHours {
@@ -91,6 +94,22 @@ erDiagram
         string lastError
     }
 
+    AiGenerationLog {
+        string id PK
+        string appointmentId
+        string patientId
+        string doctorId
+        string action
+        string provider
+        string model
+        string status
+        int latencyMs
+        int promptTokens
+        int completionTokens
+        string inputHash
+        string outputJson
+    }
+
     MedicationReminder {
         string id PK
         string patientId FK
@@ -115,21 +134,24 @@ erDiagram
 - **`passwordHash`**: String (PBKDF2 salted hash)
 - **`name`**: String
 - **`role`**: Enum (`ADMIN`, `DOCTOR`, `PATIENT`)
+- **`isTestFixture`**: Boolean (default `false`)
 
 ### `DoctorProfile`
 - **`id`**: String (UUID, Primary Key)
 - **`userId`**: String (Foreign Key -> `User.id`, Unique)
 - **`specialty`**: String
-- **`consultFee`**: Float
+- **`consultFee`**: Float (`DOUBLE PRECISION` in PostgreSQL)
 - **`slotDurationMin`**: Int (default 30)
 - **`bufferTimeMin`**: Int (default 10)
+- **`isPublished`**: Boolean (default `true`)
+- **`isTestFixture`**: Boolean (default `false`)
 
 ### `SlotHold`
 - **`id`**: String (UUID, Primary Key)
 - **`doctorId`**: String (Foreign Key -> `DoctorProfile.id`)
 - **`patientId`**: String (Foreign Key -> `User.id`)
-- **`startTime`**: DateTime
-- **`endTime`**: DateTime
+- **`startTime`**: DateTime (`TIMESTAMP(3)` in PostgreSQL)
+- **`endTime`**: DateTime (`TIMESTAMP(3)` in PostgreSQL)
 - **`expiresAt`**: DateTime (Index for automated cleanup)
 
 ### `Appointment`
@@ -159,26 +181,40 @@ erDiagram
 - **`claimedAt`**: DateTime (Nullable, for 5-min stale worker lease recovery)
 - **`lastError`**: String (Nullable)
 
+### `AiGenerationLog` (Audit Log)
+- **`id`**: String (UUID, Primary Key)
+- **`appointmentId`**: String (Nullable)
+- **`patientId`**: String (Nullable)
+- **`doctorId`**: String (Nullable)
+- **`action`**: String (`PRE_VISIT` or `POST_VISIT`)
+- **`provider`**: String (`openai`, `mock`, `test`)
+- **`model`**: String (`gpt-4o-mini`)
+- **`promptVersion`**: String (default `1.0`)
+- **`status`**: String (`SUCCESS`, `FAILED`, `TIMEOUT`)
+- **`requestId`**: String (Nullable, OpenAI request ID)
+- **`latencyMs`**: Int
+- **`promptTokens`**: Int
+- **`completionTokens`**: Int
+- **`inputHash`**: String (SHA-256 slice)
+- **`outputJson`**: String (JSON)
+
 ---
 
-## 3. Database Engine Deployment Strategy
+## 3. PostgreSQL Production Migration Sequence
 
-### Local Development (SQLite)
-- Local development uses SQLite (`prisma/dev.db`).
-- Double-booking prevention is enforced via two-phase reservation (`SlotHold` + Prisma `$transaction` interactive locks).
+Production deployments execute version-controlled Prisma migrations in chronological sequence via `npx prisma migrate deploy`:
 
-### Production Deployment (PostgreSQL)
-- Production deployments use PostgreSQL.
-- In addition to application-level `$transaction` checks, concurrency is additionally enforced at the database engine level via a GiST exclusion constraint on overlapping appointment time ranges for the same doctor.
-- Migration file provided at `prisma/migrations/20260821000000_postgresql_gist_exclusion/migration.sql`:
-  ```sql
-  CREATE EXTENSION IF NOT EXISTS btree_gist;
+1. **`20260820000000_init_postgresql_schema`**: Base table creation using native PostgreSQL data types (`TIMESTAMP(3)`, `DOUBLE PRECISION`, `BOOLEAN`, `TEXT`).
+2. **`20260821000000_postgresql_gist_exclusion`**: Enables `btree_gist` extension and adds PostgreSQL GiST exclusion constraint (`no_overlapping_appointments`) to the `Appointment` table:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-  ALTER TABLE "Appointment"
-  ADD CONSTRAINT "no_overlapping_appointments"
-  EXCLUDE USING gist (
-    "doctorId" WITH =,
-    tsrange("startTime", "endTime") WITH &&
-  )
-  WHERE (status IN ('CONFIRMED', 'HELD'));
-  ```
+   ALTER TABLE "Appointment"
+   ADD CONSTRAINT "no_overlapping_appointments"
+   EXCLUDE USING gist (
+     "doctorId" WITH =,
+     tsrange("startTime", "endTime") WITH &&
+   )
+   WHERE (status IN ('CONFIRMED', 'HELD'));
+   ```
+3. **`20260823000000_ai_generation_log_and_test_fixtures`**: Creates `AiGenerationLog` audit log table and indexes.
