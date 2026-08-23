@@ -2,7 +2,7 @@
 
 > **GitHub Repository**: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
-CarePulse is a healthcare appointment prototype built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Tailwind CSS, SQLite for local development, and optional PostgreSQL deployment**. It includes appointment booking, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted visit preparation using strict JSON Schema Structured Outputs**.
+CarePulse is a healthcare appointment system built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Tailwind CSS, SQLite for local development, and PostgreSQL for production**. It includes appointment booking, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **Live OpenAI AI-assisted clinical post-visit preparation using strict JSON Schema Structured Outputs**.
 
 ---
 
@@ -30,19 +30,16 @@ CarePulse uses a modular monolith pattern. Domain modules (`booking`, `doctors`,
   WHERE (status IN ('CONFIRMED', 'HELD'));
   ```
 
-### 3. Doctor Leave Management Engine
-When a doctor submits leave dates (`startDate` to `endDate`), the system records the approved `DoctorLeave`. It queries all future active appointments falling within the leave range, marks them as `CANCELLED`, and atomically enqueues outbox notifications for patients and Google Calendar deletion sync events. Subsequent slot availability queries filter out approved leave days automatically.
+### 3. Doctor-Authored Prescriptions & AI Post-Visit Workflow
+- **Clinician Authority**: Prescriptions (medication, dosage, frequency, duration, instructions) are authored exclusively by the doctor. The AI model is strictly prohibited from inventing, altering, or omitting any medication.
+- **Strict JSON Schema Structured Outputs**: Uses OpenAI SDK (`gpt-4o-mini`) with `response_format: { type: "json_schema", json_schema: ... }` to format patient-friendly explanations without altering doctor instructions.
+- **Transactional Idempotency**: Consultation records update `Appointment` and create `MedicationReminder` records in a Prisma transaction. Resubmitting consultation notes updates existing reminders without creating duplicate records.
+- **Non-Fallback Failure Guard**: When `LLM_PROVIDER=openai`, if the OpenAI API call fails or `OPENAI_API_KEY` is missing, the system NEVER falls back to mock data. Clinician-entered notes and prescriptions are saved safely, and an explicit review banner is presented to the user with a retry action.
 
 ### 4. Transactional Outbox & Job Lease Recovery
 To prevent external API failures (SMTP email servers, Google Calendar REST API) from rolling back successful appointment bookings:
 - Notification jobs are written to `NotificationLog` inside the booking transaction with unique `idempotencyKey` fields (`appt_email_confirmed_${id}`, `appt_calendar_create_${id}`).
 - **Atomic Job Claiming & Lease Recovery**: Worker nodes claim pending jobs or stale `PROCESSING` jobs (`claimedAt <= NOW() - 5 minutes`) using a unique `claimToken` in an atomic database update step.
-- **Adapter Boundary Idempotency**: Email adapter transmits `X-Idempotency-Key` headers; Google Calendar adapter formats event IDs with `idempotencyKey` and handles HTTP 409 duplicate responses.
-
-### 5. Live OpenAI Integration & Clinical Safety Architecture
-- **Strict JSON Schema Structured Outputs**: Uses OpenAI SDK (`gpt-4o-mini`) with `response_format: { type: "json_schema", json_schema: ... }` to enforce exact schema compliance on AI summaries.
-- **Audit Persistence (`AiGenerationLog`)**: Every AI invocation persists `appointmentId`, `patientId`, `doctorId`, `provider`, `model`, `promptVersion`, `status`, `requestId`, `latencyMs`, `promptTokens`, `completionTokens`, `inputHash`, and `outputJson`.
-- **Safety Controls**: Server-only execution, configurable timeout (`OPENAI_TIMEOUT_MS`), PHI log redaction (`[REDACTED_EMAIL]`, `[REDACTED_PHONE]`), persistent rate limiting (10 req/min), doctor ownership verification, and mandatory non-diagnostic medical disclaimers.
 
 ---
 
@@ -59,7 +56,7 @@ npm run db:generate:local
 npm run db:push
 npm run db:seed:local
 
-# 3. Execute automated test suite (33 tests)
+# 3. Execute automated test suite (33+ tests)
 npm test
 
 # 4. Start Next.js development server
@@ -72,7 +69,7 @@ Open `http://localhost:3000` to launch the application.
 
 ## Live Provider Setup & Environment Variables (`.env`)
 
-To switch from local `mock` mode to live OpenAI generation:
+To configure live OpenAI generation:
 
 ```env
 LLM_PROVIDER="openai"
@@ -81,15 +78,17 @@ OPENAI_MODEL="gpt-4o-mini"
 OPENAI_TIMEOUT_MS="10000"
 ```
 
-| Variable Name | Default / Demo Value | Purpose |
+> [!NOTE]
+> Live API usage requires a valid `OPENAI_API_KEY` and will incur standard OpenAI API usage costs per request. Never expose your `OPENAI_API_KEY` in client-side code or public repositories.
+
+| Variable Name | Default / Configured Value | Purpose |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `"file:./dev.db"` | Database connection string (SQLite file path or PostgreSQL URI). |
-| `LLM_PROVIDER` | `"mock"` | AI adapter mode (`mock` for offline dev, `openai` for live API, `test` for automated tests). |
-| `OPENAI_API_KEY` | `""` | Official OpenAI API key for live structured outputs. |
+| `LLM_PROVIDER` | `"openai"` | AI adapter mode (`openai` for live API, `test` for automated tests, `mock` for offline dev). |
+| `OPENAI_API_KEY` | `""` | Official OpenAI API key for live structured outputs (Server-side only). |
 | `OPENAI_MODEL` | `"gpt-4o-mini"` | OpenAI model name for clinical generation. |
 | `OPENAI_TIMEOUT_MS` | `"10000"` | Request timeout limit in milliseconds. |
 | `JWT_SECRET` | `"carepulse-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
-| `CRON_SECRET` | `"carepulse-worker-key"` | Authorization bearer key for worker trigger endpoints. |
 
 ---
 
@@ -98,26 +97,16 @@ OPENAI_TIMEOUT_MS="10000"
 | Role | Email | Password | Access Level |
 | :--- | :--- | :--- | :--- |
 | **System Admin** | `admin@carepulse.com` | `admin123` | Full Admin Operations & Outbox Console |
-| **Doctor** | `sarah.jenkins@carepulse.com` | `admin123` | Doctor Consultation Queue & Leave Manager |
-| **Patient** | `alex.rivera@example.com` | `patient123` | Patient Slot Search, Booking & Visit Preparation |
+| **Doctor** | `sarah.jenkins@carepulse.com` | `admin123` | Doctor Consultation Queue, Prescription Form & Leave Manager |
+| **Patient** | `alex.rivera@example.com` | `patient123` | Patient Slot Search, Booking & Prescriptions Dashboard |
 
 ---
 
 ## Production Deployment Checklist
 
-To graduate from prototype to full production deployment:
 - [x] Live OpenAI SDK integration with strict JSON Schema Structured Outputs.
-- [x] Audit record logging (`AiGenerationLog`) with latency and token tracking.
-- [x] Server-side role authorization & doctor/patient ownership enforcement.
+- [x] Audit record logging (`AiGenerationLog`) with latency, request ID, and token tracking.
+- [x] Doctor-authored prescription authority with atomic database transactions.
+- [x] Non-fallback failure recovery policy when live AI provider is unavailable.
 - [ ] Deploy managed PostgreSQL database and run `npm run db:migrate:deploy`.
-- [ ] Configure production environment variables (`LLM_PROVIDER=openai`, `OPENAI_API_KEY`).
-- [ ] Connect Redis/Upstash for distributed rate limiting across serverless instances.
-- [ ] Enable HTTPS-only secure cookie policies in production.
-
----
-
-## Test & Build Results
-
-- **Automated Test Suite**: **33/33 Passed** (`npm test`)
-- **TypeScript Typecheck**: **0 Errors** (`npx tsc --noEmit`)
-- **Next.js Production Build**: `✓ Compiled successfully (22/22 static pages)`
+- [ ] Set production environment variables (`LLM_PROVIDER=openai`, `OPENAI_API_KEY`).

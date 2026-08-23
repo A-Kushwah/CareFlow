@@ -96,16 +96,22 @@ model Appointment {
 }
 
 model MedicationReminder {
-  id         String    @id @default(uuid())
-  patientId  String
-  medication String
-  dosage     String
-  frequency  String
-  startDate  DateTime
-  endDate    DateTime
-  lastSentAt DateTime?
-  status     String    @default("ACTIVE")
-  createdAt  DateTime  @default(now())
+  id            String    @id @default(uuid())
+  patientId     String
+  appointmentId String?
+  medication    String
+  dosage        String
+  frequency     String
+  duration      String?
+  instructions  String?
+  startDate     DateTime
+  endDate       DateTime
+  lastSentAt    DateTime?
+  status        String    @default("ACTIVE")
+  createdAt     DateTime  @default(now())
+
+  @@index([patientId])
+  @@index([appointmentId])
 }
 
 model NotificationLog {

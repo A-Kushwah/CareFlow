@@ -81,7 +81,7 @@ test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
   );
 
   // Step 6: Doctor Completes Visit & Generates Post-Visit Notes
-  const postVisitSummary = await invokePostVisitLLM('Prescribed Hydrocortisone cream 1%. Apply twice daily.');
+  const postVisitSummary = await invokePostVisitLLM('Prescribed Hydrocortisone cream 1%. Apply twice daily.', { overrideProvider: 'test' });
   await prisma.appointment.update({
     where: { id: appt.id },
     data: {

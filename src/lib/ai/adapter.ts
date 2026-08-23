@@ -5,26 +5,24 @@ import {
   PreVisitSummarySchema,
   PostVisitSummary,
   PostVisitSummarySchema,
+  DoctorPrescription,
   AiInvokeOptions,
 } from './types';
 import { callOpenAiPreVisit, callOpenAiPostVisit, redactPHI, validateAiProviderConfig } from './openaiProvider';
 
 const PROMPT_VERSION = '1.0';
 
-// In-Memory sliding window rate limiter
 const rateLimitMap = new Map<string, number[]>();
 
 export async function checkAiRateLimitPersistent(key: string, limit = 10, windowMs = 60000): Promise<boolean> {
   const now = Date.now();
   const windowStart = new Date(now - windowMs);
 
-  // 1. Check in-memory sliding window
   const timestamps = (rateLimitMap.get(key) || []).filter((t) => now - t < windowMs);
   if (timestamps.length >= limit) {
     return false;
   }
 
-  // 2. Check persistent database log entries if table exists
   try {
     if ((prisma as any).aiGenerationLog) {
       const recentDbLogsCount = await (prisma as any).aiGenerationLog.count({
@@ -51,7 +49,6 @@ export function hashInput(text: string): string {
   return crypto.createHash('sha256').update(text.trim().toLowerCase()).digest('hex').slice(0, 16);
 }
 
-// Helper to safely persist audit logs without throwing if Prisma client is regenerating
 async function safeCreateAuditLog(data: any): Promise<string | undefined> {
   try {
     if ((prisma as any).aiGenerationLog) {
@@ -71,13 +68,13 @@ export async function invokePreVisitLLM(
   symptoms: string,
   options: AiInvokeOptions = {}
 ): Promise<{ summary: PreVisitSummary; provider: string; model: string; auditId?: string }> {
-  // Validate startup configuration
   const config = validateAiProviderConfig();
-  if (!config.valid) {
+  const provider = options.overrideProvider || config.provider;
+
+  if (provider === 'openai' && !config.valid) {
     throw new Error(`AI Provider Configuration Error: ${config.error}`);
   }
 
-  const provider = options.overrideProvider || config.provider;
   const truncatedSymptoms = symptoms.slice(0, 2000);
   const inputHash = hashInput(truncatedSymptoms);
   const startTime = Date.now();
@@ -124,7 +121,6 @@ export async function invokePreVisitLLM(
         };
       }
     } else {
-      // Mock provider for offline development
       latencyMs = Date.now() - startTime;
       modelName = 'mock-clinical-triage-v1';
       const isUrgent = /chest pain|shortness of breath|severe bleeding|fainting/i.test(symptoms);
@@ -167,7 +163,6 @@ export async function invokePreVisitLLM(
     }
   }
 
-  // Persist Audit Record safely
   const auditId = await safeCreateAuditLog({
     appointmentId: options.appointmentId || null,
     patientId: options.patientId || null,
@@ -198,16 +193,39 @@ export async function invokePreVisitLLM(
 // ----------------------------------------------------------------------
 export async function invokePostVisitLLM(
   consultationNotes: string,
-  options: AiInvokeOptions = {}
+  arg2?: string | DoctorPrescription[] | AiInvokeOptions,
+  arg3?: DoctorPrescription[] | AiInvokeOptions,
+  arg4?: AiInvokeOptions
 ): Promise<{ summary: PostVisitSummary; provider: string; model: string; auditId?: string }> {
+  let followUpInstructions = '';
+  let prescriptions: DoctorPrescription[] = [];
+  let options: AiInvokeOptions = {};
+
+  if (typeof arg2 === 'string') {
+    followUpInstructions = arg2;
+    if (Array.isArray(arg3)) {
+      prescriptions = arg3;
+      if (arg4 && typeof arg4 === 'object') options = arg4;
+    } else if (arg3 && typeof arg3 === 'object') {
+      options = arg3;
+    }
+  } else if (Array.isArray(arg2)) {
+    prescriptions = arg2;
+    if (arg3 && typeof arg3 === 'object' && !Array.isArray(arg3)) options = arg3;
+  } else if (arg2 && typeof arg2 === 'object') {
+    options = arg2;
+  }
+
   const config = validateAiProviderConfig();
-  if (!config.valid) {
+  const provider = options.overrideProvider || config.provider;
+
+  if (provider === 'openai' && !config.valid) {
     throw new Error(`AI Provider Configuration Error: ${config.error}`);
   }
 
-  const provider = options.overrideProvider || config.provider;
   const truncatedNotes = consultationNotes.slice(0, 2000);
-  const inputHash = hashInput(truncatedNotes);
+  const compositeInput = `${truncatedNotes} | ${followUpInstructions} | ${JSON.stringify(prescriptions)}`;
+  const inputHash = hashInput(compositeInput);
   const startTime = Date.now();
 
   const rateLimitKey = options.doctorId || 'anonymous-postvisit';
@@ -225,7 +243,7 @@ export async function invokePostVisitLLM(
 
   try {
     if (provider === 'openai') {
-      const openAiRes = await callOpenAiPostVisit(truncatedNotes);
+      const openAiRes = await callOpenAiPostVisit(truncatedNotes, followUpInstructions, prescriptions);
       resultData = openAiRes.data;
       modelName = openAiRes.model;
       latencyMs = openAiRes.latencyMs;
@@ -239,38 +257,41 @@ export async function invokePostVisitLLM(
         resultData = PostVisitSummarySchema.parse(options.testOutput);
       } else {
         resultData = {
-          patientInstructions: ['Follow doctor notes as discussed during consultation.'],
-          medicationSummary: [],
-          followUpSchedule: 'As needed',
+          patientInstructions: [followUpInstructions || 'Follow doctor notes as discussed during consultation.'],
+          medicationSummary: prescriptions.map((p) => ({
+            medication: p.medication,
+            dosage: p.dosage,
+            frequency: p.frequency,
+            duration: p.duration,
+            instructions: p.instructions || 'Take as directed',
+          })),
+          followUpSchedule: followUpInstructions || 'As needed',
           summary: 'Test provider post-visit summary.',
-          disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer to direct doctor advice.',
+          disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer directly to clinician advice.',
         };
       }
     } else {
-      // Mock provider: Summarizes ONLY provided notes without inventing non-existent medications
+      // Mock provider: strictly uses provided prescriptions
       latencyMs = Date.now() - startTime;
       modelName = 'mock-clinical-postvisit-v1';
 
-      const meds: any[] = [];
-      const amoxMatch = truncatedNotes.match(/amoxicillin\s*(\d+mg)?/i);
-      if (amoxMatch) {
-        meds.push({
-          medication: 'Amoxicillin',
-          dosage: amoxMatch[1] || '500mg',
-          frequency: 'As prescribed by physician',
-          instructions: 'Take with food and complete full course',
-        });
-      }
+      const medsSummary = prescriptions.map((p) => ({
+        medication: p.medication,
+        dosage: p.dosage,
+        frequency: p.frequency,
+        duration: p.duration,
+        instructions: p.instructions || 'Take with food and complete full course',
+      }));
 
       resultData = {
         patientInstructions: [
-          'Rest and drink plenty of fluids.',
+          followUpInstructions || 'Rest, drink fluids, and follow clinician recommendations.',
           'Contact the clinic if symptoms worsen or fail to improve.',
         ],
-        medicationSummary: meds,
-        followUpSchedule: truncatedNotes.toLowerCase().includes('2 weeks') ? 'In 2 weeks' : 'As needed',
+        medicationSummary: medsSummary,
+        followUpSchedule: followUpInstructions || 'As needed',
         summary: `Clinical Summary based on consultation notes: ${redactPHI(truncatedNotes.slice(0, 150))}`,
-        disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer to direct doctor advice.',
+        disclaimer: 'AI-generated consultation summaries organize clinical instructions only. Refer directly to clinician advice.',
       };
     }
   } catch (err: any) {

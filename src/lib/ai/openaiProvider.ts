@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { PreVisitSummary, PreVisitSummarySchema, PostVisitSummary, PostVisitSummarySchema } from './types';
+import { PreVisitSummary, PreVisitSummarySchema, PostVisitSummary, PostVisitSummarySchema, DoctorPrescription } from './types';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -72,9 +72,10 @@ const PostVisitJsonSchema = {
             medication: { type: "string" },
             dosage: { type: "string" },
             frequency: { type: "string" },
+            duration: { type: "string" },
             instructions: { type: "string" }
           },
-          required: ["medication", "dosage", "frequency", "instructions"],
+          required: ["medication", "dosage", "frequency", "duration", "instructions"],
           additionalProperties: false
         }
       },
@@ -149,7 +150,11 @@ Provide exactly 3 clinical questions to help organize the patient consultation.`
   }
 }
 
-export async function callOpenAiPostVisit(notes: string): Promise<{
+export async function callOpenAiPostVisit(
+  notes: string,
+  followUpInstructions = '',
+  prescriptions: DoctorPrescription[] = []
+): Promise<{
   data: PostVisitSummary;
   model: string;
   latencyMs: number;
@@ -164,18 +169,37 @@ export async function callOpenAiPostVisit(notes: string): Promise<{
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  const promptText = `Summarize ONLY the doctor-entered consultation notes below.
-STRICT RULE: Do NOT invent or add medications that are NOT explicitly written in the notes.
+  const formattedMeds = prescriptions.length > 0
+    ? prescriptions.map((p, idx) => `${idx + 1}. ${p.medication} - Dosage: ${p.dosage}, Frequency: ${p.frequency}, Duration: ${p.duration}, Instructions: ${p.instructions || 'None'}`).join('\n')
+    : 'None prescribed by clinician.';
 
-Doctor Notes:
-"${notes.slice(0, 2000)}"`;
+  const promptText = `Summarize the clinician-entered consultation details below for patient follow-up.
+
+CRITICAL CLINICAL BOUNDARIES:
+1. Summarize ONLY the doctor-entered consultation notes and follow-up instructions.
+2. Explain ONLY the doctor-authored prescriptions listed below. Preserve medication names, dosage, frequency, duration, and instructions EXACTLY as authored by the doctor.
+3. NEVER diagnose independently.
+4. NEVER create, add, alter, or remove any medication, dosage, frequency, or duration.
+5. NEVER invent a medication or treatment.
+
+Doctor Consultation Notes:
+"${notes.slice(0, 2000)}"
+
+Doctor Follow-Up Instructions:
+"${(followUpInstructions || 'Follow up as needed.').slice(0, 1000)}"
+
+Doctor-Authored Prescriptions:
+${formattedMeds}`;
 
   try {
     const response = await openaiClient.chat.completions.create(
       {
         model: MODEL,
         messages: [
-          { role: 'system', content: 'You format clinical consultation summaries using strict JSON Schema outputs.' },
+          {
+            role: 'system',
+            content: 'You format clinical consultation summaries using strict JSON Schema outputs. You never invent, alter, or omit doctor-authored prescriptions.'
+          },
           { role: 'user', content: promptText },
         ],
         response_format: {

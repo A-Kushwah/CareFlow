@@ -7,6 +7,7 @@ import DoctorDirectory from '@/components/DoctorDirectory';
 import SymptomTriageWizard from '@/components/SymptomTriageWizard';
 import DoctorPortal from '@/components/DoctorPortal';
 import AdminOutboxConsole from '@/components/AdminOutboxConsole';
+import PatientDashboard from '@/components/PatientDashboard';
 import { AvailableSlot, Role } from '@/lib/types';
 
 export default function HomePage() {
@@ -140,6 +141,19 @@ export default function HomePage() {
     setTimeout(() => setBookingSuccessMsg(''), 8000);
   };
 
+  if (!currentUser) {
+    return (
+      <main className="min-h-[70vh] grid place-items-center px-6">
+        <div className="max-w-md text-center space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">CarePulse / Clinic Operations</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Sign in to continue</h1>
+          <p className="text-sm leading-6 text-slate-600">Patients and clinicians have separate workspaces. Sign in to access the dashboard for your account.</p>
+          <a href="/login" className="inline-block btn-primary text-sm">Go to sign in</a>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {/* Top Header Navbar */}
@@ -192,7 +206,10 @@ export default function HomePage() {
 
       {/* Dynamic Portal View (Gated by Permission) */}
       {activeTab === 'patient' && isTabAllowed('patient', currentUser) && (
-        <DoctorDirectory onSelectSlot={handleSelectSlot} />
+        <>
+          <PatientDashboard />
+          <div className="max-w-7xl mx-auto px-6 pb-6"><DoctorDirectory onSelectSlot={handleSelectSlot} /></div>
+        </>
       )}
 
       {activeTab === 'doctor' && isTabAllowed('doctor', currentUser) && (

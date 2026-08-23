@@ -6,9 +6,11 @@ import { Role } from '@/lib/types';
 export default function AuthModal({
   onClose,
   onSuccess,
+  standalone = false,
 }: {
   onClose: () => void;
   onSuccess: (user: any) => void;
+  standalone?: boolean;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -97,7 +99,7 @@ export default function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+    <div className={standalone ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4'}>
       <div className="bg-white border border-slate-200 rounded-lg max-w-sm w-full p-5 space-y-4 shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -111,9 +113,9 @@ export default function AuthModal({
                 : 'Register a patient account for slot booking'}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">
-            ×
-          </button>
+          {!standalone && (
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-base">×</button>
+          )}
         </div>
 
         {errorMsg && (
