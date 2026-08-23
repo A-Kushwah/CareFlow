@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { encryptToken, decryptToken } from '../security/crypto';
 
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email';
 const STATE_SECRET = process.env.GOOGLE_OAUTH_STATE_SECRET || process.env.JWT_SECRET || 'careflow_oauth_state_secret_key';
 
 export async function generateOAuthState(userId: string, returnUrl: string = '/'): Promise<string> {
@@ -136,8 +136,9 @@ export async function exchangeCodeAndSaveConnection(userId: string, code: string
     throw new Error('Google OAuth did not return a refresh token. Please re-authorize access with prompt=consent.');
   }
 
-  // 2. Fetch User Account Email from Google UserInfo API
-  let googleEmail = `google.user.${userId}@gmail.com`;
+  // 2. Fetch User Account Email from Google UserInfo API or fallback to user email
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  let googleEmail = dbUser?.email || `user@careflow.com`;
   try {
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -147,7 +148,7 @@ export async function exchangeCodeAndSaveConnection(userId: string, code: string
       if (userInfo.email) googleEmail = userInfo.email;
     }
   } catch {
-    // Keep fallback
+    // Keep dbUser email fallback
   }
 
   // 3. Encrypt Tokens at Rest (AES-256-GCM)
