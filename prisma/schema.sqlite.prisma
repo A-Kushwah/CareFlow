@@ -1,15 +1,11 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
-
-// PostgreSQL Migration Note:
-// For PostgreSQL production deployments, double-booking prevention is additionally enforced
-// at the database engine layer using a GiST EXCLUDE constraint (see migration 20260821000000_postgresql_gist_exclusion).
 
 model User {
   id            String   @id @default(uuid())
