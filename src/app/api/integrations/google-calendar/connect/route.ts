@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const returnUrl = searchParams.get('returnUrl') || '/settings';
+    const returnUrl = searchParams.get('returnUrl') || '/';
 
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
       return NextResponse.redirect(

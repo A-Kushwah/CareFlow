@@ -5,7 +5,7 @@ import { encryptToken, decryptToken } from '../security/crypto';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const STATE_SECRET = process.env.GOOGLE_OAUTH_STATE_SECRET || process.env.JWT_SECRET || 'careflow_oauth_state_secret_key';
 
-export async function generateOAuthState(userId: string, returnUrl: string = '/settings'): Promise<string> {
+export async function generateOAuthState(userId: string, returnUrl: string = '/'): Promise<string> {
   const timestamp = Date.now();
   const expiresAt = new Date(timestamp + 15 * 60 * 1000); // 15 minutes validity
   const nonce = crypto.randomBytes(16).toString('hex');
@@ -62,7 +62,7 @@ export async function verifyOAuthState(stateString: string): Promise<{ userId: s
       data: { consumedAt: new Date() },
     });
 
-    return { userId, returnUrl: returnUrl || '/settings' };
+    return { userId, returnUrl: returnUrl || '/' };
   } catch {
     return null;
   }
