@@ -45,33 +45,34 @@ Open `http://localhost:3000` to launch the application.
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `"file:./dev.db"` | Prisma database connection string (SQLite file path or PostgreSQL URI). |
 | `EMAIL_PROVIDER` | `"console"` | Email delivery adapter mode (`console` for local logging, `smtp` for Nodemailer). |
-| `LLM_PROVIDER` | `"mock"` | AI adapter mode (`mock` for deterministic fallback, `openai` / `gemini` for live API). |
+| `LLM_PROVIDER` | `"mock"` | AI adapter mode (`mock` for deterministic fallback, `openai` for live API). |
+| `OPENAI_API_KEY` | `""` | Official OpenAI API Key for strict JSON Schema Structured Outputs. |
+| `OPENAI_MODEL` | `"gpt-4o-mini"` | OpenAI model name for pre-visit and post-visit clinical generation. |
+| `OPENAI_TIMEOUT_MS` | `"10000"` | OpenAI API request timeout limit in milliseconds. |
 | `CALENDAR_ENABLED` | `"false"` | Google Calendar sync toggle (`false` for mock mode, `true` for live OAuth API). |
 | `JWT_SECRET` | `"carepulse-jwt-secret"` | HMAC-SHA256 secret for signing HTTP-only session cookies. |
 | `CRON_SECRET` | `"carepulse-worker-key"` | Authorization bearer key for trigger endpoints (`/api/notifications/process`). |
-| `SMTP_HOST` | `""` | SMTP server host (e.g., `smtp.gmail.com` or `smtp.mailgun.org`). |
-| `SMTP_PORT` | `"587"` | SMTP server port. |
-| `SMTP_USER` | `""` | SMTP authentication username. |
-| `SMTP_PASS` | `""` | SMTP authentication password. |
-| `GOOGLE_CLIENT_ID` | `""` | Google Cloud OAuth Client ID for Calendar API v3. |
-| `GOOGLE_CLIENT_SECRET` | `""` | Google Cloud OAuth Client Secret. |
-| `GOOGLE_REFRESH_TOKEN` | `""` | Google OAuth Refresh Token. |
-| `OPENAI_API_KEY` | `""` | OpenAI API Key (optional). |
 
 ---
 
 ## 3. Production Deployment Guide (PostgreSQL + Vercel / Render)
 
-### A. Managed PostgreSQL Database Setup
+### A. Managed PostgreSQL Database Setup & Migration Strategy
 1. Provision a PostgreSQL database instance on Render, Railway, Neon, or Supabase.
 2. Update `DATABASE_URL` in your production environment variables to your PostgreSQL connection string:
    ```env
    DATABASE_URL="postgresql://user:password@ep-host.postgresql.service.com:5432/carepulse?sslmode=require"
    ```
 3. Update `prisma/schema.prisma` datasource provider from `"sqlite"` to `"postgresql"`.
-4. Apply Prisma migrations and execute the GiST exclusion constraint migration:
+4. Run committed production migrations (`prisma/migrations/`):
    ```bash
    npx prisma migrate deploy
+   ```
+   > **Note on Migration Strategy**: `prisma db push` is used for rapid local prototyping, but production deployments **must** execute version-controlled migration files via `npx prisma migrate deploy` to ensure zero data loss, auditability, and deterministic schema evolution.
+
+5. Execute PostgreSQL GiST exclusion constraint migration (`prisma/migrations/20260821000000_postgresql_gist_exclusion`):
+   ```bash
+   psql $DATABASE_URL -f prisma/migrations/20260821000000_postgresql_gist_exclusion/migration.sql
    ```
 
 ### B. Web Server Deployment (Vercel / Render)
