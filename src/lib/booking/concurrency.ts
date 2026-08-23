@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { AppointmentStatus, LeaveStatus, NotificationChannel, NotificationStatus } from '../types';
-import { syncPerUserCalendarEvents } from '../calendar/perUserCalendarService';
+import { processOutboxNotifications } from '../notifications/processor';
 
 export async function createSlotHold(doctorId: string, patientId: string, startTimeISO: string, endTimeISO: string) {
   const startTime = new Date(startTimeISO);
@@ -242,11 +242,25 @@ export async function confirmAppointmentTransaction(
       },
     });
 
+    // 10. Enqueue Durable Per-User Google Calendar Sync Outbox Job
+    await tx.notificationLog.create({
+      data: {
+        idempotencyKey: `appointment_calendar_per_user_create_${appt.id}`,
+        recipient: appt.id,
+        channel: NotificationChannel.CALENDAR,
+        template: 'CALENDAR_PER_USER_CREATE',
+        payload: JSON.stringify({ appointmentId: appt.id }),
+        status: NotificationStatus.QUEUED,
+        attempts: 0,
+        nextRetryAt: new Date(),
+      },
+    });
+
     return appt;
   });
 
-  // Trigger Per-User Google Calendar Sync asynchronously after transaction commits
-  syncPerUserCalendarEvents('CREATE', appointment.id).catch(() => {});
+  // Trigger outbox processing worker
+  processOutboxNotifications().catch(() => {});
 
   return appointment;
 }

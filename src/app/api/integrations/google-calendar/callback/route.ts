@@ -16,9 +16,9 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/settings?error=missing_oauth_parameters', req.url));
     }
 
-    const statePayload = verifyOAuthState(state);
+    const statePayload = await verifyOAuthState(state);
     if (!statePayload) {
-      return NextResponse.redirect(new URL('/settings?error=invalid_or_expired_oauth_state', req.url));
+      return NextResponse.redirect(new URL('/settings?error=invalid_expired_or_replayed_oauth_state', req.url));
     }
 
     await exchangeCodeAndSaveConnection(statePayload.userId, code);

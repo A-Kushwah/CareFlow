@@ -60,7 +60,8 @@ export async function syncPerUserCalendarEvents(
             eventBody.attendees = [{ email: otherParticipant.email, displayName: otherParticipant.name }];
           }
 
-          const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          // SendUpdates=all ensures Google Calendar dispatches attendee email invites
+          const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -100,7 +101,7 @@ export async function syncPerUserCalendarEvents(
             });
           }
         } else if (action === 'UPDATE' && existingEvent?.providerEventId) {
-          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.providerEventId}`, {
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.providerEventId}?sendUpdates=all`, {
             method: 'PATCH',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -123,7 +124,7 @@ export async function syncPerUserCalendarEvents(
             });
           }
         } else if (action === 'DELETE' && existingEvent?.providerEventId) {
-          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.providerEventId}`, {
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.providerEventId}?sendUpdates=all`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },
           });

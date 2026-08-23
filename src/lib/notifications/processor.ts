@@ -3,6 +3,7 @@ import { prisma } from '../prisma';
 import { NotificationChannel, NotificationStatus } from '../types';
 import { sendEmailNotification } from './emailAdapter';
 import { syncCalendarEvent } from '../calendar/googleCalendarAdapter';
+import { syncPerUserCalendarEvents } from '../calendar/perUserCalendarService';
 
 export const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 minutes processing lease
 
@@ -16,7 +17,7 @@ export function calculateExponentialBackoff(attempt: number): Date {
 export async function processOutboxNotifications(limit: number = 20) {
   const now = new Date();
   const staleThreshold = new Date(now.getTime() - LEASE_DURATION_MS);
-  
+
   // 1. Query candidate jobs: QUEUED/FAILED ready for retry OR stale PROCESSING jobs past 5-min lease
   const candidateJobs = await prisma.notificationLog.findMany({
     where: {
@@ -80,7 +81,16 @@ export async function processOutboxNotifications(limit: number = 20) {
       const payloadObj = JSON.parse(job.payload || '{}');
       const idempotencyKey = job.idempotencyKey || `job_${job.id}`;
 
-      if (job.channel === NotificationChannel.EMAIL) {
+      if (job.template?.startsWith('CALENDAR_PER_USER_')) {
+        const action = job.template === 'CALENDAR_PER_USER_CREATE'
+          ? 'CREATE'
+          : job.template === 'CALENDAR_PER_USER_UPDATE'
+          ? 'UPDATE'
+          : 'DELETE';
+
+        await syncPerUserCalendarEvents(action, payloadObj.appointmentId || job.recipient);
+        result = { success: true };
+      } else if (job.channel === NotificationChannel.EMAIL) {
         result = await sendEmailNotification(job.recipient, job.template, payloadObj, idempotencyKey);
       } else if (job.channel === NotificationChannel.CALENDAR) {
         result = await syncCalendarEvent(job.template, payloadObj, idempotencyKey);

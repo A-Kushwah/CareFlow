@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@/lib/types';
-import { syncPerUserCalendarEvents } from '@/lib/calendar/perUserCalendarService';
+import { processOutboxNotifications } from '@/lib/notifications/processor';
 import { z } from 'zod';
 
 const RescheduleAppointmentSchema = z.object({
@@ -185,11 +185,23 @@ export async function POST(req: Request, context?: any) {
         },
       });
 
+      // Enqueue Durable Per-User Google Calendar Update Outbox Job
+      await tx.notificationLog.create({
+        data: {
+          idempotencyKey: `appointment_calendar_per_user_update_${appointmentId}_${timestampKey}`,
+          recipient: appointmentId,
+          channel: 'CALENDAR',
+          template: 'CALENDAR_PER_USER_UPDATE',
+          payload: JSON.stringify({ appointmentId }),
+          status: 'QUEUED',
+        },
+      });
+
       return appt;
     });
 
-    // Trigger Per-User Google Calendar Update asynchronously
-    syncPerUserCalendarEvents('UPDATE', appointmentId).catch(() => {});
+    // Trigger Outbox Processor
+    processOutboxNotifications().catch(() => {});
 
     return NextResponse.json({
       success: true,

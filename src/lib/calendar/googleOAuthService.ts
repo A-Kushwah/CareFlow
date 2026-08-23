@@ -5,29 +5,62 @@ import { encryptToken, decryptToken } from '../security/crypto';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const STATE_SECRET = process.env.GOOGLE_OAUTH_STATE_SECRET || process.env.JWT_SECRET || 'carepulse_oauth_state_secret_key';
 
-export function generateOAuthState(userId: string, returnUrl: string = '/settings'): string {
+export async function generateOAuthState(userId: string, returnUrl: string = '/settings'): Promise<string> {
   const timestamp = Date.now();
-  const raw = `${userId}:${timestamp}:${returnUrl}`;
-  const signature = crypto.createHmac('sha256', STATE_SECRET).update(raw).digest('base64url');
-  return Buffer.from(JSON.stringify({ userId, timestamp, returnUrl, sig: signature })).toString('base64url');
+  const expiresAt = new Date(timestamp + 15 * 60 * 1000); // 15 minutes validity
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const raw = `${userId}:${timestamp}:${nonce}:${returnUrl}`;
+  const stateHash = crypto.createHash('sha256').update(raw).digest('hex');
+  const signature = crypto.createHmac('sha256', STATE_SECRET).update(stateHash).digest('base64url');
+
+  // Persist single-use nonce in database
+  await prisma.oAuthStateNonce.create({
+    data: {
+      stateHash,
+      userId,
+      returnUrl,
+      expiresAt,
+    },
+  });
+
+  return Buffer.from(JSON.stringify({ userId, timestamp, nonce, returnUrl, stateHash, sig: signature })).toString('base64url');
 }
 
-export function verifyOAuthState(stateString: string): { userId: string; returnUrl: string } | null {
+export async function verifyOAuthState(stateString: string): Promise<{ userId: string; returnUrl: string } | null> {
   try {
     const decoded = JSON.parse(Buffer.from(stateString, 'base64url').toString('utf8'));
-    const { userId, timestamp, returnUrl, sig } = decoded;
+    const { userId, timestamp, nonce, returnUrl, stateHash, sig } = decoded;
 
-    if (!userId || !timestamp || !sig) return null;
+    if (!userId || !timestamp || !nonce || !stateHash || !sig) return null;
 
-    // Reject state older than 15 minutes
-    if (Date.now() - timestamp > 15 * 60 * 1000) return null;
-
-    const raw = `${userId}:${timestamp}:${returnUrl || '/settings'}`;
-    const expectedSig = crypto.createHmac('sha256', STATE_SECRET).update(raw).digest('base64url');
-
+    // 1. Verify HMAC Signature
+    const expectedSig = crypto.createHmac('sha256', STATE_SECRET).update(stateHash).digest('base64url');
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {
       return null;
     }
+
+    // 2. Query Single-Use Nonce Record in Database
+    const dbNonce = await prisma.oAuthStateNonce.findUnique({
+      where: { stateHash },
+    });
+
+    if (!dbNonce) return null; // Unrecognized state
+
+    // 3. Enforce Single-Use & Expiry Checks
+    if (dbNonce.consumedAt !== null) {
+      console.warn(`[OAUTH SECURITY REJECT] OAuth state ${stateHash} was already consumed at ${dbNonce.consumedAt.toISOString()}`);
+      return null; // State replay attempt detected!
+    }
+
+    if (dbNonce.expiresAt <= new Date()) {
+      return null; // Expired state
+    }
+
+    // 4. Atomically Mark Nonce as Consumed (Single-Use Enforcement)
+    await prisma.oAuthStateNonce.update({
+      where: { id: dbNonce.id },
+      data: { consumedAt: new Date() },
+    });
 
     return { userId, returnUrl: returnUrl || '/settings' };
   } catch {
@@ -35,10 +68,10 @@ export function verifyOAuthState(stateString: string): { userId: string; returnU
   }
 }
 
-export function getGoogleAuthUrl(userId: string, returnUrl: string = '/settings'): string {
+export async function getGoogleAuthUrl(userId: string, returnUrl: string = '/settings'): Promise<string> {
   const clientId = process.env.GOOGLE_CLIENT_ID || '';
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:3000/api/integrations/google-calendar/callback';
-  const state = generateOAuthState(userId, returnUrl);
+  const state = await generateOAuthState(userId, returnUrl);
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -85,6 +118,24 @@ export async function exchangeCodeAndSaveConnection(userId: string, code: string
   const expiresInSec = tokenData.expires_in || 3600;
   const tokenExpiresAt = new Date(Date.now() + (expiresInSec - 60) * 1000);
 
+  const existingConn = await prisma.googleCalendarConnection.findUnique({
+    where: { userId_provider: { userId, provider: 'google' } },
+  });
+
+  // Strict Refresh Token Check: No mock fallbacks allowed!
+  let finalRefreshToken = refreshToken;
+  if (!finalRefreshToken && existingConn?.encryptedRefreshToken) {
+    try {
+      finalRefreshToken = decryptToken(existingConn.encryptedRefreshToken);
+    } catch {
+      finalRefreshToken = '';
+    }
+  }
+
+  if (!finalRefreshToken) {
+    throw new Error('Google OAuth did not return a refresh token. Please re-authorize access with prompt=consent.');
+  }
+
   // 2. Fetch User Account Email from Google UserInfo API
   let googleEmail = `google.user.${userId}@gmail.com`;
   try {
@@ -99,17 +150,11 @@ export async function exchangeCodeAndSaveConnection(userId: string, code: string
     // Keep fallback
   }
 
-  // 3. Encrypt Tokens at rest
+  // 3. Encrypt Tokens at Rest (AES-256-GCM)
   const encryptedAccessToken = encryptToken(accessToken);
-  const existingConn = await prisma.googleCalendarConnection.findUnique({
-    where: { userId_provider: { userId, provider: 'google' } },
-  });
+  const encryptedRefreshToken = encryptToken(finalRefreshToken);
 
-  const encryptedRefreshToken = refreshToken
-    ? encryptToken(refreshToken)
-    : (existingConn?.encryptedRefreshToken || encryptToken('mock_refresh_token_fallback'));
-
-  // 4. Save to Database
+  // 4. Save Connection to Database
   const connection = await prisma.googleCalendarConnection.upsert({
     where: { userId_provider: { userId, provider: 'google' } },
     update: {

@@ -164,6 +164,19 @@ model AppointmentCalendarEvent {
   @@index([userId])
 }
 
+model OAuthStateNonce {
+  id         String    @id @default(uuid())
+  stateHash  String    @unique
+  userId     String
+  returnUrl  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([stateHash])
+  @@index([userId])
+}
+
 model MedicationReminder {
   id            String    @id @default(uuid())
   patientId     String

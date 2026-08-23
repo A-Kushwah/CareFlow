@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const returnUrl = searchParams.get('returnUrl') || '/settings';
 
-    const authUrl = getGoogleAuthUrl(session.userId, returnUrl);
+    const authUrl = await getGoogleAuthUrl(session.userId, returnUrl);
     return NextResponse.redirect(authUrl);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to initiate Google Calendar connection' }, { status: 500 });
