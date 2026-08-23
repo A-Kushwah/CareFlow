@@ -1,5 +1,7 @@
 'use client';
 
+import { Role } from '@/lib/types';
+
 export default function Navbar({
   activeTab,
   onSelectTab,
@@ -13,6 +15,10 @@ export default function Navbar({
   onOpenLogin: () => void;
   onLogout: () => void;
 }) {
+  const isPatient = !currentUser || currentUser.role === Role.PATIENT || currentUser.role === 'PATIENT';
+  const isDoctor = currentUser && (currentUser.role === Role.DOCTOR || currentUser.role === 'DOCTOR');
+  const isAdmin = currentUser && (currentUser.role === Role.ADMIN || currentUser.role === 'ADMIN');
+
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-3">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -30,37 +36,68 @@ export default function Navbar({
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Role-Gated Portal Navigation Tabs */}
           <nav className="flex items-center space-x-1 text-xs font-medium bg-slate-100 p-1 rounded-md border border-slate-200">
-            <button
-              onClick={() => onSelectTab('patient')}
-              className={`py-1.5 px-3 rounded text-xs transition-all ${
-                activeTab === 'patient'
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Patient Portal
-            </button>
-            <button
-              onClick={() => onSelectTab('doctor')}
-              className={`py-1.5 px-3 rounded text-xs transition-all ${
-                activeTab === 'doctor'
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Doctor Schedule
-            </button>
-            <button
-              onClick={() => onSelectTab('admin')}
-              className={`py-1.5 px-3 rounded text-xs transition-all ${
-                activeTab === 'admin'
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Operations & Outbox
-            </button>
+            {isPatient && (
+              <button
+                onClick={() => onSelectTab('patient')}
+                className={`py-1.5 px-3 rounded text-xs transition-all ${
+                  activeTab === 'patient'
+                    ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Patient Portal
+              </button>
+            )}
+
+            {isDoctor && (
+              <button
+                onClick={() => onSelectTab('doctor')}
+                className={`py-1.5 px-3 rounded text-xs transition-all ${
+                  activeTab === 'doctor'
+                    ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Doctor Schedule
+              </button>
+            )}
+
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => onSelectTab('patient')}
+                  className={`py-1.5 px-3 rounded text-xs transition-all ${
+                    activeTab === 'patient'
+                      ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Patient View
+                </button>
+                <button
+                  onClick={() => onSelectTab('doctor')}
+                  className={`py-1.5 px-3 rounded text-xs transition-all ${
+                    activeTab === 'doctor'
+                      ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Doctor View
+                </button>
+                <button
+                  onClick={() => onSelectTab('admin')}
+                  className={`py-1.5 px-3 rounded text-xs transition-all ${
+                    activeTab === 'admin'
+                      ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Operations & Outbox
+                </button>
+              </>
+            )}
           </nav>
 
           {/* User Auth Badge / Login Button */}

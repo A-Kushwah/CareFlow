@@ -6,15 +6,14 @@ import { createSessionToken } from '../src/lib/auth/session';
 import { Role } from '../src/lib/types';
 import { POST as postVisitHandler } from '../src/app/api/ai/post-visit/route';
 import { POST as holdHandler } from '../src/app/api/appointments/hold/route';
-import { POST as confirmApptHandler } from '../src/app/api/appointments/route';
+import { GET as getAppointmentsHandler, POST as confirmApptHandler } from '../src/app/api/appointments/route';
 import { POST as calendarSyncHandler } from '../src/app/api/calendar/sync/route';
+import { POST as doctorLeaveHandler } from '../src/app/api/doctors/leave/route';
+import { GET as getAdminMetricsHandler } from '../src/app/api/admin/metrics/route';
 
 test('Security Authorization: Registration hardcodes PATIENT role', async () => {
   const email = `security.user.${Date.now()}@example.com`;
-  
-  // Public registration function forces Role.PATIENT
   const user = await registerUser(email, 'password123', 'Security Test User', Role.PATIENT);
-  
   assert.equal(user.role, Role.PATIENT, 'Registered user must have PATIENT role');
 });
 
@@ -43,6 +42,109 @@ test('Security Data Isolation: Patients cannot query other patient appointments'
 
   const hasPatient2Data = apptsPatient1.some((a) => a.patientId === patient2.id);
   assert.equal(hasPatient2Data, false, 'Patient 1 must not receive Patient 2 appointment records');
+});
+
+test('Security Privacy: Patient cannot submit doctor leave', async () => {
+  const patient = await registerUser(`patient.leave.${Date.now()}@example.com`, 'pass123', 'Leave Patient', Role.PATIENT);
+  const token = createSessionToken({
+    userId: patient.id,
+    email: patient.email,
+    name: patient.name,
+    role: patient.role,
+  });
+
+  const req = new Request('http://localhost:3000/api/doctors/leave', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: `carepulse_session=${token}`,
+    },
+    body: JSON.stringify({
+      startDate: '2026-09-20',
+      endDate: '2026-09-22',
+      reason: 'Personal leave request',
+    }),
+  });
+
+  const res = await doctorLeaveHandler(req);
+  assert.equal(res.status, 403, 'Patient attempting doctor leave submission must be rejected with 403 Forbidden');
+});
+
+test('Security Privacy: Doctor receives strictly their own schedule data', async () => {
+  const docUser1 = await registerUser(`doc1.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR);
+  const docProfile1 = await prisma.doctorProfile.create({
+    data: { userId: docUser1.id, specialty: 'Cardiology', consultFee: 150 },
+  });
+
+  const docUser2 = await registerUser(`doc2.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR);
+  const docProfile2 = await prisma.doctorProfile.create({
+    data: { userId: docUser2.id, specialty: 'Neurology', consultFee: 180 },
+  });
+
+  const patient = await registerUser(`pat.schedule.${Date.now()}@example.com`, 'pass123', 'Schedule Patient', Role.PATIENT);
+
+  // Appointment for Doc 1
+  await prisma.appointment.create({
+    data: {
+      patientId: patient.id,
+      doctorId: docProfile1.id,
+      startTime: new Date('2026-10-15T09:00:00Z'),
+      endTime: new Date('2026-10-15T09:30:00Z'),
+      status: 'CONFIRMED',
+      symptoms: 'Heart palpitations',
+    },
+  });
+
+  // Appointment for Doc 2
+  await prisma.appointment.create({
+    data: {
+      patientId: patient.id,
+      doctorId: docProfile2.id,
+      startTime: new Date('2026-10-15T10:00:00Z'),
+      endTime: new Date('2026-10-15T10:30:00Z'),
+      status: 'CONFIRMED',
+      symptoms: 'Migraine',
+    },
+  });
+
+  // Query as Doc 1
+  const tokenDoc1 = createSessionToken({
+    userId: docUser1.id,
+    email: docUser1.email,
+    name: docUser1.name,
+    role: docUser1.role,
+    doctorId: docProfile1.id,
+  });
+
+  const reqDoc1 = new Request('http://localhost:3000/api/appointments', {
+    method: 'GET',
+    headers: { Cookie: `carepulse_session=${tokenDoc1}` },
+  });
+
+  const resDoc1 = await getAppointmentsHandler(reqDoc1);
+  assert.equal(resDoc1.status, 200);
+  const dataDoc1 = await resDoc1.json();
+  
+  const hasDoc2Appt = dataDoc1.appointments.some((a: any) => a.doctorId === docProfile2.id);
+  assert.equal(hasDoc2Appt, false, 'Doctor 1 schedule query must not include Doctor 2 appointments');
+});
+
+test('Security Authorization: Admin can access outbox and admin controls', async () => {
+  const admin = await registerUser(`admin.sec.${Date.now()}@carepulse.com`, 'pass123', 'Admin User', Role.ADMIN);
+  const token = createSessionToken({
+    userId: admin.id,
+    email: admin.email,
+    name: admin.name,
+    role: admin.role,
+  });
+
+  const req = new Request('http://localhost:3000/api/admin/metrics', {
+    method: 'GET',
+    headers: { Cookie: `carepulse_session=${token}` },
+  });
+
+  const res = await getAdminMetricsHandler(req);
+  assert.equal(res.status, 200, 'Authenticated admin user must have access to admin metrics endpoint');
 });
 
 test('Security Route Classification: /api/ai/post-visit rejects unauthenticated requests', async () => {
@@ -92,7 +194,6 @@ test('Security Role Isolation: Server overrides client-supplied patientId with s
     data: { userId: docUser.id, specialty: 'General', consultFee: 100 },
   });
 
-  // Create session for Patient A
   const token = createSessionToken({
     userId: patientA.id,
     email: patientA.email,
@@ -100,7 +201,6 @@ test('Security Role Isolation: Server overrides client-supplied patientId with s
     role: patientA.role,
   });
 
-  // Patient A attempts to send patientId: patientB.id in request body
   const req = new Request('http://localhost:3000/api/appointments', {
     method: 'POST',
     headers: {
@@ -109,7 +209,7 @@ test('Security Role Isolation: Server overrides client-supplied patientId with s
     },
     body: JSON.stringify({
       doctorId: docProfile.id,
-      patientId: patientB.id, // Tampered patientId
+      patientId: patientB.id,
       startTime: '2026-11-10T10:00:00.000Z',
       endTime: '2026-11-10T10:30:00.000Z',
       symptoms: 'Tampered ID test',

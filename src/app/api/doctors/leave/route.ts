@@ -15,7 +15,7 @@ const ApplyLeaveSchema = z.object({
 export async function POST(req: Request) {
   try {
     // ROUTE CLASSIFICATION: DOCTOR_ONLY / ADMIN_ONLY
-    const session = await getSession();
+    const session = await getSession(req);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }

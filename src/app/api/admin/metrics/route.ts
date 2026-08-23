@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/guard';
 import { Role } from '@/lib/types';
 
-export async function GET() {
-  const { errorResponse } = await requireAuth([Role.ADMIN]);
+export async function GET(req: Request) {
+  const { errorResponse } = await requireAuth([Role.ADMIN], req);
   if (errorResponse) return errorResponse;
 
   try {

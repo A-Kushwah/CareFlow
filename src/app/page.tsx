@@ -19,6 +19,29 @@ export default function HomePage() {
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
+  const [accessDeniedMsg, setAccessDeniedMsg] = useState('');
+
+  // Helper to determine allowed default tab for role
+  const getPermittedTabForRole = (user: any | null): 'patient' | 'doctor' | 'admin' => {
+    if (!user || user.role === Role.PATIENT || user.role === 'PATIENT') return 'patient';
+    if (user.role === Role.DOCTOR || user.role === 'DOCTOR') return 'doctor';
+    if (user.role === Role.ADMIN || user.role === 'ADMIN') return 'admin';
+    return 'patient';
+  };
+
+  // Helper to check if user has permission to view requested tab
+  const isTabAllowed = (tab: 'patient' | 'doctor' | 'admin', user: any | null): boolean => {
+    if (!user || user.role === Role.PATIENT || user.role === 'PATIENT') {
+      return tab === 'patient';
+    }
+    if (user.role === Role.DOCTOR || user.role === 'DOCTOR') {
+      return tab === 'doctor';
+    }
+    if (user.role === Role.ADMIN || user.role === 'ADMIN') {
+      return true; // Admin can inspect all views
+    }
+    return tab === 'patient';
+  };
 
   // 1. Session verification on application mount
   const checkSession = () => {
@@ -27,16 +50,34 @@ export default function HomePage() {
       .then((data) => {
         if (data.user) {
           setCurrentUser(data.user);
+          const defaultTab = getPermittedTabForRole(data.user);
+          setActiveTab(defaultTab);
         } else {
           setCurrentUser(null);
+          setActiveTab('patient');
         }
       })
-      .catch(() => setCurrentUser(null));
+      .catch(() => {
+        setCurrentUser(null);
+        setActiveTab('patient');
+      });
   };
 
   useEffect(() => {
     checkSession();
   }, []);
+
+  // Handle Tab Switch Request with Permission Verification
+  const handleSelectTab = (targetTab: 'patient' | 'doctor' | 'admin') => {
+    setAccessDeniedMsg('');
+    if (!isTabAllowed(targetTab, currentUser)) {
+      const allowed = getPermittedTabForRole(currentUser);
+      setAccessDeniedMsg(`Access Denied: You do not have permission to view the ${targetTab} portal. Access restricted to authorized accounts.`);
+      setActiveTab(allowed);
+      return;
+    }
+    setActiveTab(targetTab);
+  };
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -45,6 +86,7 @@ export default function HomePage() {
     setSelectedSlot(null);
     setPendingDoctor(null);
     setPendingSlot(null);
+    setActiveTab('patient');
   };
 
   // 2. Intercept slot selection based on authentication state and role
@@ -52,7 +94,6 @@ export default function HomePage() {
     setAuthErrorMsg('');
 
     if (!currentUser) {
-      // Unauthenticated: Save pending slot & doctor, open AuthModal
       setPendingDoctor(doctor);
       setPendingSlot(slot);
       setShowAuthModal(true);
@@ -60,12 +101,10 @@ export default function HomePage() {
     }
 
     if (currentUser.role !== Role.PATIENT && currentUser.role !== 'PATIENT') {
-      // Non-Patient role: Explain that patient authentication is required for booking
       setAuthErrorMsg(`Logged in as ${currentUser.name} (${currentUser.role}). Patient account login is required to book an appointment slot.`);
       return;
     }
 
-    // Authenticated Patient: Open booking wizard
     setSelectedDoctor(doctor);
     setSelectedSlot(slot);
   };
@@ -75,6 +114,10 @@ export default function HomePage() {
     setCurrentUser(user);
     setShowAuthModal(false);
     setAuthErrorMsg('');
+    setAccessDeniedMsg('');
+
+    const permitted = getPermittedTabForRole(user);
+    setActiveTab(permitted);
 
     if (pendingDoctor && pendingSlot) {
       if (user.role === Role.PATIENT || user.role === 'PATIENT') {
@@ -102,11 +145,24 @@ export default function HomePage() {
       {/* Top Header Navbar */}
       <Navbar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         currentUser={currentUser}
         onOpenLogin={() => setShowAuthModal(true)}
         onLogout={handleLogout}
       />
+
+      {/* Access Denied Banner */}
+      {accessDeniedMsg && (
+        <div className="p-3 bg-rose-50 border-l-4 border-rose-600 text-rose-900 text-xs font-medium rounded-r-md flex items-center justify-between">
+          <span>{accessDeniedMsg}</span>
+          <button
+            onClick={() => setAccessDeniedMsg('')}
+            className="text-rose-500 hover:text-rose-800 font-bold ml-4"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Auth Error Banner */}
       {authErrorMsg && (
@@ -121,7 +177,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Clean Notification Alert */}
+      {/* Booking Confirmation Toast */}
       {bookingSuccessMsg && (
         <div className="p-3 bg-emerald-50 border-l-4 border-emerald-600 text-slate-800 text-xs font-medium rounded-r-md flex items-center justify-between">
           <span>{bookingSuccessMsg}</span>
@@ -134,16 +190,16 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Dynamic Portal View */}
-      {activeTab === 'patient' && (
+      {/* Dynamic Portal View (Gated by Permission) */}
+      {activeTab === 'patient' && isTabAllowed('patient', currentUser) && (
         <DoctorDirectory onSelectSlot={handleSelectSlot} />
       )}
 
-      {activeTab === 'doctor' && (
+      {activeTab === 'doctor' && isTabAllowed('doctor', currentUser) && (
         <DoctorPortal />
       )}
 
-      {activeTab === 'admin' && (
+      {activeTab === 'admin' && isTabAllowed('admin', currentUser) && (
         <AdminOutboxConsole />
       )}
 
