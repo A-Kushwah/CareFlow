@@ -55,6 +55,8 @@ export default function DoctorPortal() {
 
   const [summary, setSummary] = useState<any | null>(null);
   const [aiError, setAiError] = useState<string | undefined>(undefined);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalError, setModalError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -223,6 +225,8 @@ export default function DoctorPortal() {
     setSelectedAppt(a);
     setSummary(null);
     setAiError(undefined);
+    setModalMessage('');
+    setModalError('');
 
     if (a.consultNotes) {
       try {
@@ -292,14 +296,17 @@ export default function DoctorPortal() {
     e.preventDefault();
     if (!selectedAppt) return;
 
+    setModalError('');
+    setModalMessage('');
+
     if (!observations.trim()) {
-      setError('Please provide clinical notes before submitting.');
+      setModalError('Please provide clinical observations before submitting.');
       return;
     }
 
     for (const p of prescriptions) {
       if (!p.medication.trim()) {
-        setError('Medication name is required for all prescribed items.');
+        setModalError('Medication name is required for all prescribed items.');
         return;
       }
     }
@@ -325,9 +332,7 @@ export default function DoctorPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save consultation notes');
 
-      if (data.stage1Success) {
-        setMessage('Stage 1 Complete: Doctor notes, prescriptions, and medication reminders saved successfully!');
-      }
+      setModalMessage('✓ Clinical consultation record, prescriptions, and medication reminders saved successfully!');
 
       if (data.aiSummary) {
         setSummary(data.aiSummary);
@@ -337,7 +342,7 @@ export default function DoctorPortal() {
 
       await loadSchedule();
     } catch (e: any) {
-      setError(e.message || 'Submission error');
+      setModalError(e.message || 'Submission error');
     } finally {
       setBusy(false);
     }
@@ -804,10 +809,26 @@ export default function DoctorPortal() {
                 )}
               </div>
 
+              {modalMessage && (
+                <div className="text-xs text-[#027A48] bg-[#ECFDF3] p-3 rounded-xl border border-[#ABE5C8] font-extrabold flex items-center gap-2">
+                  {modalMessage}
+                </div>
+              )}
+              {modalError && (
+                <div className="text-xs text-[#B42318] bg-[#FEF3F2] p-3 rounded-xl border border-[#FECDCA] font-extrabold flex items-center gap-2">
+                  ⚠️ {modalError}
+                </div>
+              )}
+              {aiError && (
+                <div className="text-xs text-[#B42318] bg-[#FEF3F2] p-3 rounded-xl border border-[#FECDCA] font-bold flex items-center gap-2">
+                  ⚠️ AI Notice: {aiError}
+                </div>
+              )}
+
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
                 <button type="button" onClick={() => setSelectedAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Close</button>
                 <button type="submit" disabled={busy} className="neu-btn-primary text-xs min-h-[44px]">
-                  {busy ? 'Saving Clinical Record…' : 'Save Consultation Record & Generate Summary'}
+                  {busy ? 'Saving Clinical Record…' : summary ? '✓ Saved & Generated (Update Record)' : 'Save Consultation Record & Generate Summary'}
                 </button>
               </div>
             </form>
