@@ -9,6 +9,7 @@ CareFlow is a full-stack healthcare appointment platform built with **Next.js 14
 ## Technical Documentation Index
 
 - 📐 **[System Architecture](docs/architecture.md)** — Modular monolith pattern, double-booking protocol, outbox engine, and AI safeguards.
+- 📝 **[System Design Write-Up (800-Word Summary)](docs/system-design.md)** — Core design report on slot conflicts, doctor leave handling, 5-min holds, and outbox failure recovery.
 - 🔌 **[API Reference](docs/api.md)** — REST endpoints, request/response schemas, status codes, and role authorization matrix.
 - 🗄️ **[Database Strategy](docs/database.md)** — Schema models, ER diagram, indexes, and PostgreSQL GiST exclusion constraint.
 - 🧪 **[Quality Assurance & Testing](docs/testing.md)** — Test suite breakdown, coverage overview, and 65 automated integration tests.
