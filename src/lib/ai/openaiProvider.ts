@@ -119,10 +119,12 @@ Provide exactly 3 clinical questions to help organize the patient consultation.`
           { role: 'system', content: 'You format clinical intake summaries using strict JSON Schema outputs.' },
           { role: 'user', content: promptText },
         ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: PreVisitJsonSchema
-        },
+        response_format: process.env.OPENAI_BASE_URL
+          ? { type: 'json_object' }
+          : {
+              type: 'json_schema',
+              json_schema: PreVisitJsonSchema,
+            },
         temperature: 0.2,
       },
       { signal: controller.signal }
@@ -205,10 +207,12 @@ ${formattedMeds}`;
           },
           { role: 'user', content: promptText },
         ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: PostVisitJsonSchema
-        },
+        response_format: process.env.OPENAI_BASE_URL
+          ? { type: 'json_object' }
+          : {
+              type: 'json_schema',
+              json_schema: PostVisitJsonSchema,
+            },
         temperature: 0.1,
       },
       { signal: controller.signal }
