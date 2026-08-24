@@ -3,7 +3,12 @@ import { PrismaClient } from '@prisma/client';
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 function getPrismaClient() {
-  const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
+  let dbUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim().replace(/^["']|["']$/g, '') : '';
+
+  // Ensure database URL starts with file: for local SQLite database
+  if (!dbUrl || !dbUrl.startsWith('file:')) {
+    dbUrl = 'file:./dev.db';
+  }
 
   return new PrismaClient({
     datasources: {
