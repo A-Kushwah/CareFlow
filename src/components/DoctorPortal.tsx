@@ -203,7 +203,15 @@ export default function DoctorPortal() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate pre-visit summary');
-      await loadSchedule();
+
+      const summaryText = data.summary?.summary || (typeof data.summary === 'string' ? data.summary : null);
+      if (summaryText) {
+        setAppointments((prev) =>
+          prev.map((item) => (item.id === apptId ? { ...item, aiPreSummary: summaryText } : item))
+        );
+      } else {
+        await loadSchedule();
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -510,7 +518,12 @@ export default function DoctorPortal() {
                         a.symptoms && (
                           <div className="pt-1">
                             <button
-                              onClick={() => handleGeneratePreSummary(a.id, a.symptoms)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleGeneratePreSummary(a.id, a.symptoms);
+                              }}
                               disabled={generatingPreId === a.id}
                               className="text-xs font-bold text-[#5667D8] hover:underline flex items-center gap-1.5"
                             >
