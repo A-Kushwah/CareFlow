@@ -6,7 +6,11 @@ function getPrismaClient() {
   const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
 
   return new PrismaClient({
-    datasourceUrl: dbUrl,
+    datasources: {
+      db: {
+        url: dbUrl,
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 }
