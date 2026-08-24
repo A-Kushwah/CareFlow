@@ -114,21 +114,21 @@ Open `http://localhost:3000` to launch the application.
 
 ## Live Provider Setup & Environment Variables (`.env`)
 
-To configure live OpenAI generation:
+To configure live Groq / Grok AI generation:
 
 ```env
-LLM_PROVIDER="openai"
-OPENAI_API_KEY="sk-proj-your-openai-api-key-here"
-OPENAI_MODEL="gpt-4o-mini"
-OPENAI_TIMEOUT_MS="10000"
+LLM_PROVIDER="groq"
+GROQ_API_KEY="gsk_your-groq-api-key-here"
+GROQ_MODEL="llama-3.3-70b-versatile"
+GROQ_TIMEOUT_MS="10000"
 ```
 
 | Variable Name | Default / Configured Value | Purpose |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `"file:./dev.db"` | Database connection string (SQLite file path for local dev, PostgreSQL URI for production). |
-| `LLM_PROVIDER` | `"openai"` | AI adapter mode (`openai`, `groq` for live API; `test` for automated tests; `mock` for offline dev). |
-| `OPENAI_API_KEY` | `""` | Server-side OpenAI API key for structured outputs. |
-| `OPENAI_MODEL` | `"gpt-4o-mini"` | OpenAI model name. |
+| `LLM_PROVIDER` | `"groq"` | AI adapter mode (`groq` / `grok`, `openai` for live API; `test` for automated tests; `mock` for offline dev). |
+| `GROQ_API_KEY` | `""` | Server-side Groq / Grok API key for fast AI clinical triage & post-visit summaries. |
+| `GROQ_MODEL` | `"llama-3.3-70b-versatile"` | Groq AI model name. |
 | `JWT_SECRET` | `"carepulse-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
 
 ---

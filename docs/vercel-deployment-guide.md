@@ -70,9 +70,9 @@ Under **Settings > Environment Variables** in your Vercel project dashboard, add
 | `NODE_ENV` | `production` | Enables production security guards & PBKDF2 pass checks |
 | `DATABASE_URL` | `postgresql://user:pass@host:5432/dbname?sslmode=require` | PostgreSQL production connection string |
 | `JWT_SECRET` | `generate-a-random-64-character-secret-key-string-here` | Session cookie signing secret |
-| `LLM_PROVIDER` | `openai` | Live OpenAI AI provider |
-| `OPENAI_API_KEY` | `sk-proj-xxx...` | Server-side OpenAI API key |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Clinical post-visit summary model |
+| `LLM_PROVIDER` | `groq` | Live Groq / Grok AI provider |
+| `GROQ_API_KEY` | `gsk_xxx...` | Server-side Groq / Grok API key |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Clinical post-visit summary & triage model |
 | `EMAIL_PROVIDER` | `smtp` (or `console` if testing) | Enforces live SMTP delivery |
 | `SMTP_HOST` | `smtp.sendgrid.net` (or Mailgun/AWS SES) | Transactional email server host |
 | `SMTP_PORT` | `587` | Email server port |

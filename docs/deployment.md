@@ -23,9 +23,9 @@ Configure the following production environment variables in your deployment dash
 | `SMTP_PORT` | `587` | Transactional email port. |
 | `SMTP_USER` | `apikey` | SMTP account username. |
 | `SMTP_PASS` | `SG.xxx` | SMTP account password / API key. |
-| `LLM_PROVIDER` | `openai` | Live OpenAI provider (mock mode rejected in production). |
-| `OPENAI_API_KEY` | `sk-proj-xxx` | OpenAI server-side API key. |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Model for clinical post-visit summaries. |
+| `LLM_PROVIDER` | `groq` | Live Groq / Grok provider (mock mode rejected in production). |
+| `GROQ_API_KEY` | `gsk_xxx` | Groq / Grok server-side API key. |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Model for clinical post-visit summaries & triage. |
 
 ---
 
