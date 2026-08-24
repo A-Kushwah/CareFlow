@@ -136,7 +136,7 @@ export async function invokePreVisitLLM(
       }
 
       resultData = {
-        urgencyLevel: isUrgent ? 'High' : isEndocrine ? 'Moderate' : 'Low',
+        urgencyLevel: isUrgent ? 'High' : isEndocrine ? 'Medium' : 'Low',
         chiefComplaint: isUrgent ? 'Urgent Symptom Complaint' : isEndocrine ? 'Cardiovascular & Endocrine Evaluation' : 'General Symptom Evaluation',
         suggestedQuestions: [
           'When did these symptoms first manifest?',
