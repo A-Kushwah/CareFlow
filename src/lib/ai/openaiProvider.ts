@@ -1,26 +1,31 @@
 import OpenAI from 'openai';
 import { PreVisitSummary, PreVisitSummarySchema, PostVisitSummary, PostVisitSummarySchema, DoctorPrescription } from './types';
 
-const apiKey = process.env.OPENAI_API_KEY;
+const provider = (process.env.LLM_PROVIDER || 'mock').toLowerCase();
+const isGroq = provider === 'groq';
+const apiKey = isGroq ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
 
 export const openaiClient = apiKey
   ? new OpenAI({
       apiKey,
-      baseURL: process.env.OPENAI_BASE_URL || undefined,
+      baseURL: process.env.OPENAI_BASE_URL || (isGroq ? 'https://api.groq.com/openai/v1' : undefined),
     })
   : null;
 
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MODEL = isGroq
+  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
+  : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
 const TIMEOUT_MS = parseInt(process.env.OPENAI_TIMEOUT_MS || '10000', 10);
 
 export function validateAiProviderConfig(): { valid: boolean; provider: string; error?: string } {
-  const provider = process.env.LLM_PROVIDER || 'mock';
-  if (provider === 'openai') {
-    if (!process.env.OPENAI_API_KEY) {
-      return { valid: false, provider, error: 'OPENAI_API_KEY environment variable is missing' };
-    }
+  const configuredProvider = (process.env.LLM_PROVIDER || 'mock').toLowerCase();
+  if (configuredProvider === 'openai' && !process.env.OPENAI_API_KEY) {
+    return { valid: false, provider: configuredProvider, error: 'OPENAI_API_KEY environment variable is missing' };
   }
-  return { valid: true, provider };
+  if (configuredProvider === 'groq' && !process.env.GROQ_API_KEY) {
+    return { valid: false, provider: configuredProvider, error: 'GROQ_API_KEY environment variable is missing' };
+  }
+  return { valid: true, provider: configuredProvider };
 }
 
 export function redactPHI(text: string): string {
@@ -119,7 +124,7 @@ Provide exactly 3 clinical questions to help organize the patient consultation.`
           { role: 'system', content: 'You format clinical intake summaries using strict JSON Schema outputs.' },
           { role: 'user', content: promptText },
         ],
-        response_format: process.env.OPENAI_BASE_URL
+        response_format: process.env.OPENAI_BASE_URL || isGroq
           ? { type: 'json_object' }
           : {
               type: 'json_schema',
@@ -151,7 +156,7 @@ Provide exactly 3 clinical questions to help organize the patient consultation.`
     if (err.name === 'AbortError') {
       throw new Error(`OpenAI request timed out after ${TIMEOUT_MS}ms`);
     }
-    throw new Error(`OpenAI Pre-Visit Provider Error: ${err.message}`);
+      throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Pre-Visit Provider Error: ${err.message}`);
   }
 }
 
@@ -207,7 +212,7 @@ ${formattedMeds}`;
           },
           { role: 'user', content: promptText },
         ],
-        response_format: process.env.OPENAI_BASE_URL
+        response_format: process.env.OPENAI_BASE_URL || isGroq
           ? { type: 'json_object' }
           : {
               type: 'json_schema',
@@ -239,6 +244,6 @@ ${formattedMeds}`;
     if (err.name === 'AbortError') {
       throw new Error(`OpenAI request timed out after ${TIMEOUT_MS}ms`);
     }
-    throw new Error(`OpenAI Post-Visit Provider Error: ${err.message}`);
+      throw new Error(`${isGroq ? 'Groq' : 'OpenAI'} Post-Visit Provider Error: ${err.message}`);
   }
 }
