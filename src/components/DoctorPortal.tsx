@@ -59,6 +59,7 @@ export default function DoctorPortal() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [generatingPreId, setGeneratingPreId] = useState<string | null>(null);
   const [leave, setLeave] = useState({ start: '', end: '', reason: '' });
 
   const loadSchedule = async () => {
@@ -188,6 +189,25 @@ export default function DoctorPortal() {
       setError(err.message);
     } finally {
       setRescheduleBusy(false);
+    }
+  };
+
+  const handleGeneratePreSummary = async (apptId: string, symptoms: string) => {
+    setGeneratingPreId(apptId);
+    setError('');
+    try {
+      const res = await fetch('/api/ai/pre-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symptoms, appointmentId: apptId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate pre-visit summary');
+      await loadSchedule();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setGeneratingPreId(null);
     }
   };
 
@@ -482,10 +502,22 @@ export default function DoctorPortal() {
                         </div>
                       )}
 
-                      {a.aiPreSummary && (
+                      {a.aiPreSummary ? (
                         <div className="text-xs text-[#5667D8] bg-[#E8EAFA] p-2.5 rounded-xl border border-[#5667D8]/20">
                           <strong className="font-bold">AI Pre-Visit Triage Summary:</strong> {a.aiPreSummary}
                         </div>
+                      ) : (
+                        a.symptoms && (
+                          <div className="pt-1">
+                            <button
+                              onClick={() => handleGeneratePreSummary(a.id, a.symptoms)}
+                              disabled={generatingPreId === a.id}
+                              className="text-xs font-bold text-[#5667D8] hover:underline flex items-center gap-1.5"
+                            >
+                              {generatingPreId === a.id ? '✨ Generating AI Pre-Visit Triage…' : '✨ Generate AI Pre-Visit Triage Summary'}
+                            </button>
+                          </div>
+                        )
                       )}
                     </div>
 
