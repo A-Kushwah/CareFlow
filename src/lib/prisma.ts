@@ -4,15 +4,15 @@ import fs from 'fs';
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-function getDatabaseUrl(): string {
-  const envUrl = process.env.DATABASE_URL?.trim().replace(/^["']|["']$/g, '') || '';
+function setupDatabaseEnvironment(): string {
+  let envUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.trim().replace(/^["']|["']$/g, '') : '';
 
-  // If a remote PostgreSQL database URL is configured (e.g. in Vercel env vars), return it directly
+  // 1. If a remote PostgreSQL / Postgres database URL is configured in Vercel environment variables, use it
   if (envUrl.startsWith('postgresql://') || envUrl.startsWith('postgres://')) {
     return envUrl;
   }
 
-  // Resolve local SQLite database file path
+  // 2. Resolve local SQLite database file path
   const defaultPath = path.join(process.cwd(), 'prisma', 'dev.db');
   const fallbackPath = path.join(process.cwd(), 'dev.db');
 
@@ -22,27 +22,29 @@ function getDatabaseUrl(): string {
     ? fallbackPath
     : defaultPath;
 
-  // On Vercel serverless environment (/var/task is read-only), copy dev.db to /tmp/dev.db
+  // 3. On Vercel / serverless environment (/var/task is read-only), copy dev.db to /tmp/dev.db
   // where SQLite can acquire write & journal locks without throwing Error Code 14.
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     const tmpDbPath = '/tmp/dev.db';
-    if (fs.existsSync(sourceDbPath)) {
+    if (fs.existsSync(sourceDbPath) && !fs.existsSync(tmpDbPath)) {
       try {
         fs.copyFileSync(sourceDbPath, tmpDbPath);
       } catch (err) {
         console.error('Failed to copy SQLite dev.db to /tmp on Vercel:', err);
       }
     }
-    if (fs.existsSync(tmpDbPath)) {
-      return `file:${tmpDbPath}`;
-    }
+    const finalUrl = fs.existsSync(tmpDbPath) ? `file:${tmpDbPath}` : `file:${sourceDbPath}`;
+    process.env.DATABASE_URL = finalUrl;
+    return finalUrl;
   }
 
-  return `file:${sourceDbPath}`;
+  const finalUrl = `file:${sourceDbPath}`;
+  process.env.DATABASE_URL = finalUrl;
+  return finalUrl;
 }
 
 function createPrismaClient() {
-  const dbUrl = getDatabaseUrl();
+  const dbUrl = setupDatabaseEnvironment();
 
   return new PrismaClient({
     datasources: {
