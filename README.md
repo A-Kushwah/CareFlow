@@ -121,7 +121,7 @@ To configure live Groq / Grok AI generation:
 ```env
 LLM_PROVIDER="groq"
 GROQ_API_KEY="gsk_your-groq-api-key-here"
-GROQ_MODEL="llama-3.3-70b-versatile"
+GROQ_MODEL="llama-3.1-8b-instant"
 GROQ_TIMEOUT_MS="10000"
 ```
 
@@ -130,7 +130,7 @@ GROQ_TIMEOUT_MS="10000"
 | `DATABASE_URL` | `"file:./dev.db"` | Database connection string (SQLite file path for local dev, PostgreSQL URI for production). |
 | `LLM_PROVIDER` | `"groq"` | AI adapter mode (`groq` / `grok`, `openai` for live API; `test` for automated tests; `mock` for offline dev). |
 | `GROQ_API_KEY` | `""` | Server-side Groq / Grok API key for fast AI clinical triage & post-visit summaries. |
-| `GROQ_MODEL` | `"llama-3.3-70b-versatile"` | Groq AI model name. |
+| `GROQ_MODEL` | `"llama-3.1-8b-instant"` | Groq AI model name. |
 | `JWT_SECRET` | `"careflow-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
 
 ---

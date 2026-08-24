@@ -72,7 +72,7 @@ Under **Settings > Environment Variables** in your Vercel project dashboard, add
 | `JWT_SECRET` | `generate-a-random-64-character-secret-key-string-here` | Session cookie signing secret |
 | `LLM_PROVIDER` | `groq` | Live Groq / Grok AI provider |
 | `GROQ_API_KEY` | `gsk_xxx...` | Server-side Groq / Grok API key |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Clinical post-visit summary & triage model |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` | Clinical post-visit summary & triage model |
 | `EMAIL_PROVIDER` | `smtp` (or `console` if testing) | Enforces live SMTP delivery |
 | `SMTP_HOST` | `smtp.sendgrid.net` (or Mailgun/AWS SES) | Transactional email server host |
 | `SMTP_PORT` | `587` | Email server port |

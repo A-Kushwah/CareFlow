@@ -14,8 +14,11 @@ export const openaiClient = apiKey
 
 const GROQ_CANDIDATE_MODELS = Array.from(new Set([
   process.env.GROQ_MODEL,
-  'llama3-70b-8192',
   'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-70b-versatile',
+  'gemma2-9b-it',
+  'llama3-70b-8192',
   'llama3-8b-8192',
   'mixtral-8x7b-32768',
 ])).filter(Boolean) as string[];
