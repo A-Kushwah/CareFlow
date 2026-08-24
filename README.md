@@ -11,8 +11,8 @@ CarePulse is a full-stack healthcare appointment platform built with **Next.js 1
 - 📐 **[System Architecture](docs/architecture.md)** — Modular monolith pattern, double-booking protocol, outbox engine, and AI safeguards.
 - 🔌 **[API Reference](docs/api.md)** — REST endpoints, request/response schemas, status codes, and role authorization matrix.
 - 🗄️ **[Database Strategy](docs/database.md)** — Schema models, ER diagram, indexes, and PostgreSQL GiST exclusion constraint.
-- 🧪 **[Quality & Verification Matrix](docs/verification-matrix.md)** — Requirement breakdown, 65 automated test cases, and build verification.
-- 🚀 **[Deployment Guide](docs/deployment.md)** — Step-by-step local setup, environment variables, PostgreSQL migration, and production deployment.
+- 🧪 **[Quality Assurance & Testing](docs/testing.md)** — Test suite breakdown, coverage overview, and 65 automated integration tests.
+- 🚀 **[Deployment Guide](docs/vercel-deployment-guide.md)** — Step-by-step local setup, environment variables, PostgreSQL migration, and Vercel production deployment.
 
 ---
 
