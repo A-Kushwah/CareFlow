@@ -71,7 +71,7 @@ export async function invokePreVisitLLM(
   const config = validateAiProviderConfig();
   const provider = options.overrideProvider || config.provider;
 
-  if (provider === 'openai' && !config.valid) {
+  if (['openai', 'groq'].includes(provider) && !config.valid) {
     throw new Error(`AI Provider Configuration Error: ${config.error}`);
   }
 
@@ -93,7 +93,7 @@ export async function invokePreVisitLLM(
   let requestId: string | undefined;
 
   try {
-    if (provider === 'openai') {
+    if (['openai', 'groq'].includes(provider)) {
       const openAiRes = await callOpenAiPreVisit(truncatedSymptoms);
       resultData = openAiRes.data;
       modelName = openAiRes.model;
@@ -123,17 +123,28 @@ export async function invokePreVisitLLM(
     } else {
       latencyMs = Date.now() - startTime;
       modelName = 'mock-clinical-triage-v1';
-      const isUrgent = /chest pain|shortness of breath|severe bleeding|fainting/i.test(symptoms);
+      const isUrgent = /chest pain|shortness of breath|severe bleeding|fainting|stroke/i.test(symptoms);
+      const isEndocrine = /blood sugar|glucose|diabetes|thirst|frequent urination|blood pressure|hypertension/i.test(symptoms);
+
+      let summaryText = '';
+      if (isEndocrine) {
+        summaryText = `Patient reports ${redactPHI(truncatedSymptoms.slice(0, 150))}. Clinical triage notes: Indicates potential cardiovascular and metabolic dysregulation. Recommend pre-visit evaluation of home glucose and blood pressure logs, baseline HbA1c, and renal/metabolic panel.`;
+      } else if (isUrgent) {
+        summaryText = `Patient reports acute symptom pattern: ${redactPHI(truncatedSymptoms.slice(0, 150))}. High triage priority. Immediate clinical assessment recommended: baseline ECG, vitals monitoring, and targeted cardiovascular/respiratory examination.`;
+      } else {
+        summaryText = `Patient reports chief complaint: ${redactPHI(truncatedSymptoms.slice(0, 150))}. Routine triage classification. Recommended focus: take targeted clinical history, evaluate onset and severity, and review relevant medical history.`;
+      }
+
       resultData = {
-        urgencyLevel: isUrgent ? 'High' : 'Low',
-        chiefComplaint: isUrgent ? 'Urgent Symptom Complaint' : 'General Symptom Evaluation',
+        urgencyLevel: isUrgent ? 'High' : isEndocrine ? 'Moderate' : 'Low',
+        chiefComplaint: isUrgent ? 'Urgent Symptom Complaint' : isEndocrine ? 'Cardiovascular & Endocrine Evaluation' : 'General Symptom Evaluation',
         suggestedQuestions: [
           'When did these symptoms first manifest?',
           'Have you experienced similar symptoms before?',
           'Do you have relevant medical history or allergies?',
         ],
         redFlagsIdentified: isUrgent ? ['Potentially severe symptom pattern detected'] : [],
-        summary: `Pre-visit preparation notes generated for symptom pattern: ${redactPHI(truncatedSymptoms.slice(0, 100))}`,
+        summary: summaryText,
         disclaimer: 'AI-generated preparation notes help organize the consultation. They are not a diagnosis or medical advice.',
       };
     }
@@ -156,7 +167,7 @@ export async function invokePreVisitLLM(
       errorReason,
     });
 
-    if (provider === 'openai') {
+    if (['openai', 'groq'].includes(provider)) {
       throw new Error(`Live AI Provider Error: ${errorReason}`);
     } else {
       throw err;

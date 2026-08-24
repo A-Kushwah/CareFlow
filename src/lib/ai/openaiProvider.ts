@@ -111,10 +111,10 @@ export async function callOpenAiPreVisit(symptoms: string): Promise<{
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  const promptText = `Analyze the following patient symptoms for visit preparation only:
+  const promptText = `You are a clinical intake assistant. Analyze the patient's reported symptoms:
 "${symptoms.slice(0, 2000)}"
 
-Provide exactly 3 clinical questions to help organize the patient consultation.`;
+Provide a concise, professional clinical triage summary (2-3 sentences max) synthesizing the patient's primary symptoms, potential medical concerns, and preliminary recommendations for the attending physician. Also provide 3 key clinical intake questions, urgency level, and red flag warnings if present.`;
 
   try {
     const response = await openaiClient.chat.completions.create(
