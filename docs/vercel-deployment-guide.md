@@ -88,14 +88,14 @@ Under **Settings > Environment Variables** in your Vercel project dashboard, add
 
 ## Step 5: Configure Google Cloud OAuth Redirect URIs
 
-Once Vercel assigns your production domain (e.g. `https://careflow.vercel.app`):
+Once Vercel assigns your production domain (`https://a-kushwah-care-flow.vercel.app/`):
 
 1. Go to [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials).
 2. Edit your **OAuth 2.0 Web Application Client**.
 3. Add to **Authorized JavaScript origins**:
-   - `https://your-app-name.vercel.app`
+   - `https://a-kushwah-care-flow.vercel.app`
 4. Add to **Authorized redirect URIs**:
-   - `https://your-app-name.vercel.app/api/integrations/google-calendar/callback`
+   - `https://a-kushwah-care-flow.vercel.app/api/integrations/google-calendar/callback`
 5. Save changes in Google Cloud Console.
 
 ---
@@ -103,18 +103,18 @@ Once Vercel assigns your production domain (e.g. `https://careflow.vercel.app`):
 ## Step 6: Trigger Vercel Deployment & Verify
 
 1. Click **Deploy** in Vercel (or push a commit to `main`).
-2. Once build completes, open your live Vercel URL.
+2. Once build completes, open your live Vercel URL ([https://a-kushwah-care-flow.vercel.app/](https://a-kushwah-care-flow.vercel.app/)).
 3. Test production health endpoints:
 
 ```bash
 # Verify System & Database Status
-curl -s https://your-app-name.vercel.app/api/health
+curl -s https://a-kushwah-care-flow.vercel.app/api/health
 
 # Output:
 # {"status":"HEALTHY","environment":"production","database":"CONNECTED","timestamp":"..."}
 
 # Verify Integrations Status (No secrets exposed)
-curl -s https://your-app-name.vercel.app/api/health/integrations
+curl -s https://a-kushwah-care-flow.vercel.app/api/health/integrations
 
 # Output:
 # {"status":"HEALTHY","integrations":{"llmProvider":true,"googleCalendar":true,"emailProvider":"smtp"}}

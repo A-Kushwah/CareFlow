@@ -1,6 +1,7 @@
 # CareFlow — Healthcare Appointment & Follow-up Manager
 
-> **GitHub Repository**: [https://github.com/A-Kushwah/CareFlow](https://github.com/A-Kushwah/CareFlow) | Mirror: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
+> 🌐 **Live Deployed Application**: [https://a-kushwah-care-flow.vercel.app/](https://a-kushwah-care-flow.vercel.app/)  
+> 📦 **GitHub Repository**: [https://github.com/A-Kushwah/CareFlow](https://github.com/A-Kushwah/CareFlow) | Mirror: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
 CareFlow is a full-stack healthcare appointment platform built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Neumorphic Clinical UI design system, SQLite for local development, and PostgreSQL for production**. It includes role-based access control for Patients, Doctors, and System Admins, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **AI-assisted clinical intake & post-visit summaries using JSON Schema Structured Outputs**.
 
