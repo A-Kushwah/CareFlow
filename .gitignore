@@ -43,3 +43,7 @@ tsconfig.tsbuildinfo
 # Playwright test results
 /test-results/
 /playwright-report/
+
+# Archives
+*.zip
+

@@ -150,10 +150,9 @@ export async function callOpenAiPreVisit(symptoms: string): Promise<{
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  const promptText = `You are a clinical intake assistant. Analyze the patient's reported symptoms:
-"${symptoms.slice(0, 2000)}"
+  const promptText = `Analyse these symptoms and return: urgency level (Low / Medium / High), chief complaint, and three suggested questions for the doctor. Symptoms: "${symptoms.slice(0, 2000)}"
 
-Provide a concise, professional clinical triage summary (2-3 sentences max) synthesizing the patient's primary symptoms, potential medical concerns, and preliminary recommendations for the attending physician. Also provide 3 key clinical intake questions, urgency level, and red flag warnings if present.`;
+Provide a concise, professional clinical triage summary synthesizing the patient's primary symptoms, potential medical concerns, and preliminary recommendations for the attending physician. Also provide 3 key clinical intake questions, urgency level, and red flag warnings if present.`;
 
   try {
     const { response, usedModel } = await createCompletionWithFallback(
@@ -221,7 +220,7 @@ export async function callOpenAiPostVisit(
     ? prescriptions.map((p, idx) => `${idx + 1}. ${p.medication} - Dosage: ${p.dosage}, Frequency: ${p.frequency}, Duration: ${p.duration}, Instructions: ${p.instructions || 'None'}`).join('\n')
     : 'None prescribed by clinician.';
 
-  const promptText = `Summarize the clinician-entered consultation details below for patient follow-up.
+  const promptText = `Convert these clinical notes into a patient-friendly summary with medication schedule and follow-up steps: "${notes.slice(0, 2000)}"
 
 CRITICAL CLINICAL BOUNDARIES:
 1. Summarize ONLY the doctor-entered consultation notes and follow-up instructions.
