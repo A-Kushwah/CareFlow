@@ -14,12 +14,9 @@ export const openaiClient = apiKey
 
 const GROQ_CANDIDATE_MODELS = Array.from(new Set([
   process.env.GROQ_MODEL,
-  'llama-3.1-8b-instant',
   'llama-3.3-70b-versatile',
-  'llama-3.1-70b-versatile',
+  'llama-3.1-8b-instant',
   'gemma2-9b-it',
-  'llama3-70b-8192',
-  'llama3-8b-8192',
   'mixtral-8x7b-32768',
 ])).filter(Boolean) as string[];
 
@@ -48,9 +45,18 @@ async function createCompletionWithFallback(
       return { response, usedModel: candidateModel };
     } catch (err: any) {
       lastError = err;
-      const errMsg = err?.message || String(err);
-      if (err?.status === 404 || errMsg.includes('does not exist') || errMsg.includes('not found') || errMsg.includes('access')) {
-        console.warn(`[GROQ MODEL FALLBACK] Model '${candidateModel}' unavailable. Trying next fallback candidate...`);
+      const errMsg = (err?.message || String(err)).toLowerCase();
+      const isModelUnavailable =
+        err?.status === 404 ||
+        err?.status === 400 ||
+        errMsg.includes('decommissioned') ||
+        errMsg.includes('deprecated') ||
+        errMsg.includes('does not exist') ||
+        errMsg.includes('not found') ||
+        errMsg.includes('access');
+
+      if (isModelUnavailable) {
+        console.warn(`[GROQ MODEL FALLBACK] Model '${candidateModel}' unavailable/decommissioned (${err?.message}). Trying next fallback candidate...`);
         continue;
       }
       throw err;
