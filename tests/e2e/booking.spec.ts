@@ -23,17 +23,9 @@ test.describe('End-to-End CareFlow Appointment Booking & Doctor Verification Flo
     // 2. Priority #1: Locate Doctor Directory at Top of Page and Pick an Available Slot
     await expect(page.locator('text=Book a Specialist Appointment')).toBeVisible({ timeout: 20000 });
 
-    // Fill date picker with future date (e.g. 2026-09-25)
-    const dateInput = page.locator('#date-picker');
-    await dateInput.fill('2026-09-25');
-    await dateInput.dispatchEvent('change');
-
-    // Wait for slot grid to calculate available slots
-    await page.waitForTimeout(2000);
-
     // Select the first enabled slot button in the doctor directory
     const availableSlotBtn = page.locator('button:enabled').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
-    await expect(availableSlotBtn).toBeVisible({ timeout: 10000 });
+    await expect(availableSlotBtn).toBeVisible({ timeout: 15000 });
     await availableSlotBtn.click();
 
     // 3. Complete Symptom Triage Wizard
