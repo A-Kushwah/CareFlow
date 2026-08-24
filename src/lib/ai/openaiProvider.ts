@@ -12,10 +12,49 @@ export const openaiClient = apiKey
     })
   : null;
 
-const MODEL = isGroq
-  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-  : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+const GROQ_CANDIDATE_MODELS = Array.from(new Set([
+  process.env.GROQ_MODEL,
+  'llama3-70b-8192',
+  'llama-3.1-8b-instant',
+  'llama3-8b-8192',
+  'mixtral-8x7b-32768',
+])).filter(Boolean) as string[];
+
+const OPENAI_DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const TIMEOUT_MS = parseInt(process.env.OPENAI_TIMEOUT_MS || '10000', 10);
+
+async function createCompletionWithFallback(
+  params: Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, 'model'>,
+  options: { signal: AbortSignal }
+): Promise<{ response: OpenAI.Chat.Completions.ChatCompletion; usedModel: string }> {
+  if (!isGroq) {
+    const response = await openaiClient!.chat.completions.create(
+      { ...params, model: OPENAI_DEFAULT_MODEL },
+      options
+    );
+    return { response, usedModel: OPENAI_DEFAULT_MODEL };
+  }
+
+  let lastError: any;
+  for (const candidateModel of GROQ_CANDIDATE_MODELS) {
+    try {
+      const response = await openaiClient!.chat.completions.create(
+        { ...params, model: candidateModel },
+        options
+      );
+      return { response, usedModel: candidateModel };
+    } catch (err: any) {
+      lastError = err;
+      const errMsg = err?.message || String(err);
+      if (err?.status === 404 || errMsg.includes('does not exist') || errMsg.includes('not found') || errMsg.includes('access')) {
+        console.warn(`[GROQ MODEL FALLBACK] Model '${candidateModel}' unavailable. Trying next fallback candidate...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
 
 export function validateAiProviderConfig(): { valid: boolean; provider: string; error?: string } {
   const configuredProvider = (process.env.LLM_PROVIDER || 'mock').toLowerCase();
@@ -117,9 +156,8 @@ export async function callOpenAiPreVisit(symptoms: string): Promise<{
 Provide a concise, professional clinical triage summary (2-3 sentences max) synthesizing the patient's primary symptoms, potential medical concerns, and preliminary recommendations for the attending physician. Also provide 3 key clinical intake questions, urgency level, and red flag warnings if present.`;
 
   try {
-    const response = await openaiClient.chat.completions.create(
+    const { response, usedModel } = await createCompletionWithFallback(
       {
-        model: MODEL,
         messages: [
           { role: 'system', content: 'You format clinical intake summaries using strict JSON Schema outputs.' },
           { role: 'user', content: promptText },
@@ -143,7 +181,7 @@ Provide a concise, professional clinical triage summary (2-3 sentences max) synt
 
     return {
       data: validated,
-      model: MODEL,
+      model: usedModel,
       latencyMs,
       tokens: {
         prompt: response.usage?.prompt_tokens || 0,
@@ -202,9 +240,8 @@ Doctor-Authored Prescriptions:
 ${formattedMeds}`;
 
   try {
-    const response = await openaiClient.chat.completions.create(
+    const { response, usedModel } = await createCompletionWithFallback(
       {
-        model: MODEL,
         messages: [
           {
             role: 'system',
@@ -231,7 +268,7 @@ ${formattedMeds}`;
 
     return {
       data: validated,
-      model: MODEL,
+      model: usedModel,
       latencyMs,
       tokens: {
         prompt: response.usage?.prompt_tokens || 0,
