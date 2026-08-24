@@ -4,7 +4,10 @@ import { PreVisitSummary, PreVisitSummarySchema, PostVisitSummary, PostVisitSumm
 const apiKey = process.env.OPENAI_API_KEY;
 
 export const openaiClient = apiKey
-  ? new OpenAI({ apiKey })
+  ? new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_BASE_URL || undefined,
+    })
   : null;
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
