@@ -12,16 +12,57 @@ export const openaiClient = apiKey
     })
   : null;
 
-const GROQ_CANDIDATE_MODELS = Array.from(new Set([
-  process.env.GROQ_MODEL,
-  'llama-3.3-70b-versatile',
+// Known active Groq models in 2026 (never include decommissioned models like llama-3.1-70b-versatile or mixtral-8x7b-32768)
+const DEFAULT_ACTIVE_GROQ_MODELS = [
   'llama-3.1-8b-instant',
-  'gemma2-9b-it',
-  'mixtral-8x7b-32768',
-])).filter(Boolean) as string[];
+  'llama-3.3-70b-versatile',
+  'deepseek-r1-distill-llama-70b',
+  'qwen-2.5-32b',
+];
 
 const OPENAI_DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const TIMEOUT_MS = parseInt(process.env.OPENAI_TIMEOUT_MS || '10000', 10);
+
+let cachedGroqModels: string[] | null = null;
+let lastModelFetch = 0;
+
+async function getAvailableGroqModels(): Promise<string[]> {
+  if (cachedGroqModels && Date.now() - lastModelFetch < 300000) {
+    return cachedGroqModels;
+  }
+  const models = new Set<string>();
+  if (process.env.GROQ_MODEL) {
+    models.add(process.env.GROQ_MODEL);
+  }
+  for (const m of DEFAULT_ACTIVE_GROQ_MODELS) {
+    models.add(m);
+  }
+  try {
+    if (openaiClient) {
+      const list = await openaiClient.models.list();
+      if (list && list.data && list.data.length > 0) {
+        for (const item of list.data) {
+          const id = item.id;
+          if (
+            !id.includes('whisper') &&
+            !id.includes('embed') &&
+            !id.includes('guard') &&
+            !id.includes('mixtral') &&
+            !id.includes('llama-3.1-70b') &&
+            !id.includes('llama3-')
+          ) {
+            models.add(id);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[GROQ MODEL DISCOVERY WARNING] Could not list models dynamically:', err?.message);
+  }
+  cachedGroqModels = Array.from(models).filter(Boolean);
+  lastModelFetch = Date.now();
+  return cachedGroqModels;
+}
 
 async function createCompletionWithFallback(
   params: Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, 'model'>,
@@ -35,8 +76,9 @@ async function createCompletionWithFallback(
     return { response, usedModel: OPENAI_DEFAULT_MODEL };
   }
 
+  const candidateModels = await getAvailableGroqModels();
   let lastError: any;
-  for (const candidateModel of GROQ_CANDIDATE_MODELS) {
+  for (const candidateModel of candidateModels) {
     try {
       const response = await openaiClient!.chat.completions.create(
         { ...params, model: candidateModel },
@@ -53,10 +95,11 @@ async function createCompletionWithFallback(
         errMsg.includes('deprecated') ||
         errMsg.includes('does not exist') ||
         errMsg.includes('not found') ||
+        errMsg.includes('invalid model') ||
         errMsg.includes('access');
 
       if (isModelUnavailable) {
-        console.warn(`[GROQ MODEL FALLBACK] Model '${candidateModel}' unavailable/decommissioned (${err?.message}). Trying next fallback candidate...`);
+        console.warn(`[GROQ MODEL FALLBACK] Model '${candidateModel}' unavailable/decommissioned (${err?.message}). Trying next candidate...`);
         continue;
       }
       throw err;
