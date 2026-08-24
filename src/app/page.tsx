@@ -143,18 +143,18 @@ export default function HomePage() {
 
   if (!currentUser) {
     return (
-      <main className="min-h-screen bg-[#E0E5EC] grid place-items-center px-4 sm:px-6 py-12">
-        <div className="neu-panel p-8 max-w-lg w-full text-center space-y-6">
-          <div className="inline-flex items-center space-x-2 bg-[#EEF2F7] px-3 py-1 rounded-xl border border-[#D4D9E2]">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#16866D]" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#16866D]">CareFlow Clinical Operations</span>
+      <main className="min-h-screen bg-slate-100/70 grid place-items-center px-4 sm:px-6 py-12">
+        <div className="med-panel bg-white p-8 sm:p-10 max-w-lg w-full text-center space-y-6 border border-slate-200/90 rounded-3xl shadow-xl">
+          <div className="inline-flex items-center space-x-2 bg-teal-50 px-3.5 py-1 rounded-full border border-teal-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-teal-600 animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-800">CareFlow Clinical Operations</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#26323B]">Sign In to Workstation</h1>
-          <p className="text-xs font-medium leading-6 text-[#56616B]">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Sign In to Workstation</h1>
+          <p className="text-xs font-medium leading-relaxed text-slate-600">
             Patients, clinicians, and operations personnel have separate session-protected workspaces. Authenticate to access your clinical dashboard.
           </p>
           <div className="pt-2">
-            <a href="/login" className="neu-btn-primary text-xs w-full justify-center min-h-[44px]">
+            <a href="/login" className="med-btn-primary text-xs w-full justify-center min-h-[44px] shadow-md focus-visible:ring-2 focus-visible:ring-teal-500 font-bold">
               Go to Sign In Page
             </a>
           </div>
@@ -164,7 +164,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#E0E5EC] pb-12 space-y-6">
+    <div className="min-h-screen bg-slate-100/60 pb-12 space-y-6">
       {/* Top Header Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -177,11 +177,11 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-4">
         {/* Access Denied Banner */}
         {accessDeniedMsg && (
-          <div className="p-4 bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold rounded-r-xl flex items-center justify-between">
+          <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold rounded-2xl flex items-center justify-between shadow-xs">
             <span>{accessDeniedMsg}</span>
             <button
               onClick={() => setAccessDeniedMsg('')}
-              className="text-[#B42318] font-extrabold text-sm ml-4"
+              className="text-red-700 font-extrabold text-sm ml-4 hover:opacity-75 focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md p-1"
               aria-label="Dismiss alert"
             >
               ×
@@ -191,11 +191,11 @@ export default function HomePage() {
 
         {/* Auth Error Banner */}
         {authErrorMsg && (
-          <div className="p-4 bg-[#FFF8EB] border-l-4 border-[#A86B00] text-[#A86B00] text-xs font-bold rounded-r-xl flex items-center justify-between">
+          <div className="p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-xs font-bold rounded-2xl flex items-center justify-between shadow-xs">
             <span>{authErrorMsg}</span>
             <button
               onClick={() => setAuthErrorMsg('')}
-              className="text-[#A86B00] font-extrabold text-sm ml-4"
+              className="text-amber-800 font-extrabold text-sm ml-4 hover:opacity-75 focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md p-1"
               aria-label="Dismiss alert"
             >
               ×
@@ -205,11 +205,11 @@ export default function HomePage() {
 
         {/* Booking Confirmation Toast */}
         {bookingSuccessMsg && (
-          <div className="p-4 bg-[#E6F4F1] border-l-4 border-[#16866D] text-[#16866D] text-xs font-bold rounded-r-xl flex items-center justify-between">
+          <div className="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold rounded-2xl flex items-center justify-between shadow-xs">
             <span>{bookingSuccessMsg}</span>
             <button
               onClick={() => setBookingSuccessMsg('')}
-              className="text-[#16866D] font-extrabold text-sm ml-4"
+              className="text-emerald-800 font-extrabold text-sm ml-4 hover:opacity-75 focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md p-1"
               aria-label="Dismiss alert"
             >
               ×

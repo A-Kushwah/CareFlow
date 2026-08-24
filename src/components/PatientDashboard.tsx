@@ -269,36 +269,39 @@ export default function PatientDashboard() {
       )}
 
       {/* Account Integration & Per-User Google Calendar Card */}
-      <section className="neu-panel p-5 border border-[#EEF2F7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <section className="med-panel p-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-extrabold text-[#26323B]">Google Calendar Integration</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold border border-teal-200">
+              📅
+            </div>
+            <h2 className="text-base font-extrabold text-slate-900">Google Calendar Automated Sync</h2>
             <span className={`clinical-badge-${isConnected ? 'success' : isReauth ? 'warning' : 'neutral'}`}>
-              {isConnected ? 'Connected' : isReauth ? 'Re-authorization Required' : 'Not Connected'}
+              {isConnected ? '✓ Connected' : isReauth ? '⚠️ Action Required' : 'Not Connected'}
             </span>
           </div>
-          <p className="text-xs text-[#56616B]">
+          <p className="text-xs font-medium text-slate-600">
             {isConnected
-              ? `Authorized for ${accountEmail || 'your Google account'}. Appointments auto-sync directly to your personal calendar.`
+              ? `Authorized for ${accountEmail || 'your Google account'}. Clinical appointments automatically sync to your calendar with reminder alerts.`
               : isReauth
-              ? 'Your Google OAuth token was revoked or expired. Please re-authorize to resume automated calendar sync.'
-              : 'Connect your personal Google Calendar to receive automatic appointment invites.'}
+              ? 'Your Google OAuth token requires re-authorization to keep appointment sync active.'
+              : 'Connect your personal Google Calendar to automatically receive calendar invites and reminders.'}
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3 shrink-0">
           {isConnected ? (
             <button
               onClick={handleDisconnectCalendar}
               disabled={calendarBusy}
-              className="neu-btn-secondary text-xs text-[#B42318] border-[#FECDCA] min-h-[40px]"
+              className="med-btn-secondary text-xs text-red-600 border-red-200 hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-teal-500 min-h-[44px]"
             >
               {calendarBusy ? 'Disconnecting…' : 'Disconnect Calendar'}
             </button>
           ) : (
             <button
               onClick={handleConnectCalendar}
-              className="neu-btn-primary text-xs min-h-[40px]"
+              className="med-btn-primary text-xs min-h-[44px] shadow-md focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               {isReauth ? 'Re-authorize Google Calendar' : 'Connect Google Calendar'}
             </button>
@@ -307,86 +310,111 @@ export default function PatientDashboard() {
       </section>
 
       {loading ? (
-        <div className="neu-panel py-16 text-center text-sm font-semibold text-[#56616B]">
-          Loading schedule…
+        <div className="med-panel py-20 text-center text-xs font-bold text-slate-500 bg-white rounded-3xl border border-slate-200" aria-live="polite">
+          <svg className="animate-spin h-6 w-6 text-teal-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Loading care record…
         </div>
       ) : (
         <>
-          {/* Top Quick Metrics */}
+          {/* Top Bento Quick Metrics Grid */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-5" aria-label="Care record metrics">
-            <div className="neu-card p-5 border border-[#EEF2F7]">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#66727D]">Upcoming Visits</p>
-              <p className="text-3xl font-extrabold text-[#26323B] mt-2">{upcomingAppointments.length}</p>
+            <div className="med-card p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-2 hover:border-teal-300 transition-colors">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Upcoming Visits</span>
+                <span className="p-2 rounded-xl bg-sky-50 text-sky-700 text-xs font-bold">🩺 Scheduled</span>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900">{upcomingAppointments.length}</p>
+              <p className="text-[11px] font-semibold text-slate-500">Active reserved consultation slots</p>
             </div>
-            <div className="neu-card p-5 border border-[#EEF2F7]">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#66727D]">Completed Consultations</p>
-              <p className="text-3xl font-extrabold text-[#26323B] mt-2">
+
+            <div className="med-card p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-2 hover:border-teal-300 transition-colors">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Completed Consultations</span>
+                <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold">✓ Verified</span>
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900">
                 {appointments.filter((a) => a.status === 'COMPLETED').length}
               </p>
+              <p className="text-[11px] font-semibold text-slate-500">Includes notes & prescriptions</p>
             </div>
-            <div className="neu-card p-5 border border-[#EEF2F7]">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#66727D]">Active Medication Reminders</p>
-              <p className="text-3xl font-extrabold text-[#16866D] mt-2">
+
+            <div className="med-card p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-2 hover:border-teal-300 transition-colors">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Active Reminders</span>
+                <span className="p-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-bold">⏰ Medication</span>
+              </div>
+              <p className="text-3xl font-extrabold text-teal-700">
                 {reminders.filter((r) => r.status === 'ACTIVE').length}
               </p>
+              <p className="text-[11px] font-semibold text-slate-500">Deduplicated schedule alerts</p>
             </div>
           </section>
 
           {/* Priority 1: Upcoming Appointments */}
-          <section className="neu-panel p-6 space-y-6" aria-labelledby="upcoming-heading">
-            <div>
-              <h2 id="upcoming-heading" className="text-lg font-bold text-[#26323B]">1. Upcoming Appointments</h2>
-              <p className="text-xs font-medium text-[#56616B] mt-0.5">Your scheduled consultations with CareFlow specialists.</p>
+          <section className="med-panel p-6 sm:p-8 space-y-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm" aria-labelledby="upcoming-heading">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h2 id="upcoming-heading" className="text-lg font-extrabold text-slate-900">1. Upcoming Appointments</h2>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">Your scheduled consultations with CareFlow specialists.</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">
+                {upcomingAppointments.length} Active
+              </span>
             </div>
 
             {upcomingAppointments.length === 0 ? (
-              <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+              <div className="bg-slate-50 p-10 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">
                 No upcoming appointments currently scheduled. Select a specialist below to book a slot.
               </div>
             ) : (
               <div className="space-y-4">
                 {upcomingAppointments.map((appointment) => (
-                  <article key={appointment.id} className="neu-card p-6 border border-[#EEF2F7] space-y-4">
-                    <div className="grid md:grid-cols-[260px_1fr_auto] gap-6 items-start">
-                      {/* Prominent Date & Time Typography */}
-                      <div className="neu-inset p-4 space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#5667D8]">Scheduled Date</span>
-                        <time className="block text-lg font-extrabold text-[#26323B]">
+                  <article key={appointment.id} className="med-card p-6 border border-slate-200/90 space-y-4 rounded-2xl bg-white shadow-xs">
+                    <div className="grid md:grid-cols-[280px_1fr_auto] gap-6 items-start">
+                      {/* Prominent Date & Time Card */}
+                      <div className="bg-gradient-to-br from-teal-50 to-sky-50 p-4 space-y-1 rounded-2xl border border-teal-100">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800">Scheduled Date</span>
+                        <time className="block text-base font-extrabold text-slate-900">
                           {formatDayOfWeek(appointment.startTime)}
                         </time>
-                        <time className="block text-base font-bold text-[#5667D8]">
+                        <time className="block text-sm font-extrabold text-teal-700">
                           {formatTimeRange(appointment.startTime, appointment.endTime)}
                         </time>
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-base font-bold text-[#26323B]">{appointment.doctor?.user?.name || 'Assigned Specialist'}</h3>
-                          <span className="clinical-badge-neutral">{appointment.doctor?.specialty || 'Medical Consultation'}</span>
+                          <h3 className="text-base font-extrabold text-slate-900">{appointment.doctor?.user?.name || 'Assigned Specialist'}</h3>
+                          <span className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                            {appointment.doctor?.specialty || 'Medical Consultation'}
+                          </span>
                         </div>
                         {appointment.symptoms && (
-                          <div className="text-xs text-[#56616B] bg-[#EEF2F7] p-2.5 rounded-xl border border-[#D4D9E2]">
-                            <strong className="text-[#26323B] font-bold">Reported Symptoms:</strong> {appointment.symptoms}
+                          <div className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200/80 font-medium">
+                            <strong className="text-slate-900 font-bold">Reported Symptoms:</strong> {appointment.symptoms}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-col gap-2 min-w-[150px]">
-                        <span className={`clinical-badge-${appointment.status === 'CONFIRMED' ? 'success' : 'warning'} text-center`}>
-                          {appointment.status}
+                      <div className="flex flex-col gap-2 min-w-[160px]">
+                        <span className={`clinical-badge-${appointment.status === 'CONFIRMED' ? 'success' : 'warning'} text-center shadow-xs justify-center`}>
+                          {appointment.status === 'CONFIRMED' ? '✓ Scheduled' : '⏳ Hold Pending'}
                         </span>
                         <button
                           onClick={() => {
                             setReschedulingAppt(appointment);
                             setRescheduleDate(new Date(appointment.startTime).toISOString().slice(0, 10));
                           }}
-                          className="neu-btn-secondary text-xs min-h-[40px] justify-center"
+                          className="med-btn-secondary text-xs min-h-[44px] justify-center focus-visible:ring-2 focus-visible:ring-teal-500 font-bold"
                         >
                           Reschedule
                         </button>
                         <button
                           onClick={() => setCancellingAppt(appointment)}
-                          className="neu-btn-secondary text-xs min-h-[40px] justify-center text-[#B42318] border-[#FECDCA]"
+                          className="med-btn-secondary text-xs min-h-[44px] justify-center text-red-600 border-red-200 hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-teal-500 font-bold"
                         >
                           Cancel Visit
                         </button>
@@ -399,16 +427,16 @@ export default function PatientDashboard() {
           </section>
 
           {/* Priority 2: Previous Consultations & Doctor-Authored Prescriptions */}
-          <section className="neu-panel p-6 space-y-6" aria-labelledby="consultations-heading">
-            <div>
-              <h2 id="consultations-heading" className="text-lg font-bold text-[#26323B]">2. Previous Consultations & Clinical Records</h2>
-              <p className="text-xs font-medium text-[#56616B] mt-0.5">
+          <section className="med-panel p-6 sm:p-8 space-y-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm" aria-labelledby="consultations-heading">
+            <div className="border-b border-slate-100 pb-4">
+              <h2 id="consultations-heading" className="text-lg font-extrabold text-slate-900">2. Previous Consultations & Clinical Records</h2>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">
                 Completed consultation summaries, doctor-authored prescriptions, and AI follow-up explanations.
               </p>
             </div>
 
             {completedAppointments.length === 0 ? (
-              <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">
+              <div className="bg-slate-50 p-10 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">
                 No completed consultation records found.
               </div>
             ) : (
@@ -438,76 +466,78 @@ export default function PatientDashboard() {
                   const isAiUnavailable = appointment.status === 'COMPLETED' && (!summary || summary.error);
 
                   return (
-                    <article key={appointment.id} className="neu-card p-6 border border-[#EEF2F7] space-y-5">
-                      <div className="grid md:grid-cols-[260px_1fr_auto] gap-6 items-start border-b border-[#D4D9E2] pb-4">
-                        <div className="neu-inset p-4 space-y-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#66727D]">Consultation Date</span>
-                          <time className="block text-base font-extrabold text-[#26323B]">
+                    <article key={appointment.id} className="med-card p-6 border border-slate-200/90 space-y-5 rounded-2xl bg-white shadow-xs">
+                      <div className="grid md:grid-cols-[280px_1fr_auto] gap-6 items-start border-b border-slate-100 pb-4">
+                        <div className="bg-slate-50 p-4 space-y-1 rounded-2xl border border-slate-200/80">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Consultation Date</span>
+                          <time className="block text-base font-extrabold text-slate-900">
                             {formatDayOfWeek(appointment.startTime)}
                           </time>
-                          <time className="block text-sm font-bold text-[#56616B]">
+                          <time className="block text-xs font-bold text-slate-500">
                             {formatTimeRange(appointment.startTime, appointment.endTime)}
                           </time>
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-bold text-[#26323B]">{appointment.doctor?.user?.name || 'Assigned Clinician'}</h3>
-                            <span className="clinical-badge-neutral">{appointment.doctor?.specialty || 'General Consultation'}</span>
+                            <h3 className="text-base font-extrabold text-slate-900">{appointment.doctor?.user?.name || 'Assigned Clinician'}</h3>
+                            <span className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                              {appointment.doctor?.specialty || 'General Consultation'}
+                            </span>
                           </div>
-                          <p className="text-xs font-semibold text-[#66727D] mt-1">CareFlow Authenticated Visit Record</p>
+                          <p className="text-xs font-semibold text-slate-500 mt-1">CareFlow Authenticated Medical Record</p>
                         </div>
-                        <span className="clinical-badge-neutral">{appointment.status}</span>
+                        <span className="clinical-badge-neutral font-extrabold">{appointment.status}</span>
                       </div>
 
                       {appointment.symptoms && (
-                        <div className="bg-[#EEF2F7] border border-[#D4D9E2] rounded-xl p-3.5 space-y-1">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#56616B]">What You Reported:</span>
-                          <p className="text-xs font-semibold text-[#26323B]">{appointment.symptoms}</p>
+                        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-1">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">What You Reported:</span>
+                          <p className="text-xs font-bold text-slate-900">{appointment.symptoms}</p>
                         </div>
                       )}
 
                       {appointment.consultNotes && (
-                        <div className="bg-[#EEF2F7] border border-[#D4D9E2] rounded-2xl p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#26323B] flex items-center gap-2">
+                        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 space-y-3">
+                          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-2">
                               <span>Clinician Consultation Notes</span>
-                              <span className="clinical-badge-neutral">Clinician-Entered</span>
                             </h4>
+                            <span className="clinical-badge-neutral">Clinician-Entered</span>
                           </div>
                           {parsedNotes ? (
-                            <div className="text-xs text-[#26323B] space-y-1.5 font-medium">
-                              {parsedNotes.notes && <p className="whitespace-pre-wrap"><strong className="font-bold text-[#26323B]">Observations:</strong> {parsedNotes.notes}</p>}
-                              {parsedNotes.assessment && <p><strong className="font-bold text-[#26323B]">Assessment:</strong> {parsedNotes.assessment}</p>}
-                              {parsedNotes.followUpInstructions && <p><strong className="font-bold text-[#26323B]">Follow-Up Instructions:</strong> {parsedNotes.followUpInstructions}</p>}
+                            <div className="text-xs text-slate-800 space-y-2 font-medium">
+                              {parsedNotes.notes && <p className="whitespace-pre-wrap"><strong className="font-bold text-slate-900">Observations:</strong> {parsedNotes.notes}</p>}
+                              {parsedNotes.assessment && <p><strong className="font-bold text-slate-900">Assessment:</strong> {parsedNotes.assessment}</p>}
+                              {parsedNotes.followUpInstructions && <p><strong className="font-bold text-slate-900">Follow-Up Instructions:</strong> {parsedNotes.followUpInstructions}</p>}
                             </div>
                           ) : (
-                            <p className="text-xs font-medium text-[#26323B] whitespace-pre-wrap">{appointment.consultNotes}</p>
+                            <p className="text-xs font-medium text-slate-900 whitespace-pre-wrap">{appointment.consultNotes}</p>
                           )}
                         </div>
                       )}
 
                       {activePrescriptions.length > 0 && (
-                        <div className="bg-[#E6F4F1] border-2 border-[#16866D] rounded-2xl p-5 space-y-4">
-                          <div className="flex flex-wrap items-center justify-between border-b border-[#9EE2D4] pb-2.5 gap-2">
+                        <div className="bg-emerald-50/60 border-2 border-emerald-500/80 rounded-2xl p-5 space-y-4">
+                          <div className="flex flex-wrap items-center justify-between border-b border-emerald-200 pb-3 gap-2">
                             <div className="flex items-center gap-2">
-                              <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#16866D]">Doctor-Authored Prescriptions</h4>
+                              <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Doctor-Authored Prescriptions</h4>
                               <span className="clinical-badge-success">Clinician-Confirmed</span>
                             </div>
-                            <span className="text-xs font-bold text-[#16866D]">Prescribed by {appointment.doctor?.user?.name || 'Clinician'}</span>
+                            <span className="text-xs font-bold text-emerald-800">Prescribed by {appointment.doctor?.user?.name || 'Clinician'}</span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {activePrescriptions.map((p: any, idx: number) => (
-                              <div key={idx} className="bg-white border border-[#9EE2D4] rounded-xl p-4 text-xs space-y-2 shadow-sm">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                                  <span className="font-extrabold text-[#26323B] text-sm">{p.medication}</span>
+                              <div key={idx} className="bg-white border border-emerald-200 rounded-xl p-4 text-xs space-y-2 shadow-xs">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                  <span className="font-extrabold text-slate-900 text-sm">{p.medication}</span>
                                   <span className="clinical-badge-success">{p.dosage}</span>
                                 </div>
-                                <div className="text-[#26323B] space-y-1 font-medium">
-                                  <p><span className="font-bold text-[#56616B]">Frequency:</span> {p.frequency}</p>
-                                  <p><span className="font-bold text-[#56616B]">Duration:</span> {p.duration || '7 days'}</p>
+                                <div className="text-slate-800 space-y-1 font-semibold">
+                                  <p><span className="font-bold text-slate-500">Frequency:</span> {p.frequency}</p>
+                                  <p><span className="font-bold text-slate-500">Duration:</span> {p.duration || '7 days'}</p>
                                   {p.instructions && (
-                                    <p className="text-[#56616B] italic mt-1"><span className="font-bold not-italic text-[#26323B]">Instructions:</span> {p.instructions}</p>
+                                    <p className="text-slate-600 italic mt-1"><span className="font-bold not-italic text-slate-800">Instructions:</span> {p.instructions}</p>
                                   )}
                                 </div>
                               </div>
@@ -517,37 +547,40 @@ export default function PatientDashboard() {
                       )}
 
                       {isAiAvailable && (
-                        <div className="bg-[#EEF2F7] border border-[#5667D8]/30 rounded-2xl p-5 text-xs space-y-3">
-                          <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-2">
+                        <div className="bg-teal-50/50 border border-teal-200 rounded-2xl p-5 text-xs space-y-3">
+                          <div className="flex items-center justify-between border-b border-teal-200/80 pb-2">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-xs uppercase tracking-wide text-[#5667D8]">Patient-Friendly Explanation</h4>
-                              <span className="clinical-badge-neutral bg-[#E8EAFA] text-[#5667D8] border-[#5667D8]/30">
-                                AI explanation available
+                              <h4 className="font-bold text-xs uppercase tracking-wide text-teal-900">Patient-Friendly Explanation</h4>
+                              <span className="clinical-badge-neutral bg-teal-100 text-teal-800 border-teal-300">
+                                AI Explanation Active
                               </span>
                             </div>
-                            <span className="text-[10px] font-bold text-[#66727D]">Separately Formatted</span>
+                            <span className="text-[10px] font-bold text-slate-500">Clear Format</span>
                           </div>
 
-                          <p className="leading-5 font-medium text-[#26323B]">{summary.summary}</p>
+                          <p className="leading-relaxed font-semibold text-slate-800">{summary.summary}</p>
 
                           {summary.patientInstructions?.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="font-bold text-[#26323B]">Follow-up instructions to consider:</p>
-                              <ul className="list-disc pl-4 space-y-0.5 text-[#56616B]">
+                            <div className="space-y-1.5">
+                              <p className="font-bold text-slate-900">Follow-up instructions to consider:</p>
+                              <ul className="space-y-1 text-slate-700 font-medium">
                                 {summary.patientInstructions.map((item: string, i: number) => (
-                                  <li key={i}>{item}</li>
+                                  <li key={i} className="flex items-start gap-2">
+                                    <span className="text-teal-600 font-extrabold">•</span>
+                                    <span>{item}</span>
+                                  </li>
                                 ))}
                               </ul>
                             </div>
                           )}
 
-                          <p className="text-[11px] italic text-[#66727D] border-t border-[#D4D9E2] pt-2">{summary.disclaimer}</p>
+                          <p className="text-[11px] italic text-slate-500 border-t border-teal-200/60 pt-2">{summary.disclaimer}</p>
                         </div>
                       )}
 
                       {isAiUnavailable && (
-                        <div className="bg-[#FFF8EB] border-2 border-[#A86B00] rounded-2xl p-5 text-xs space-y-3 text-[#A86B00]">
-                          <div className="flex flex-wrap items-center justify-between border-b border-[#F7D89C] pb-2 gap-2">
+                        <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 text-xs space-y-3 text-amber-900">
+                          <div className="flex flex-wrap items-center justify-between border-b border-amber-200 pb-2 gap-2">
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-xs uppercase tracking-wide">Patient Summary Status</h4>
                               <span className="clinical-badge-warning">
@@ -557,13 +590,13 @@ export default function PatientDashboard() {
                             <button
                               onClick={() => handleRetryExplanation(appointment)}
                               disabled={retryingId === appointment.id}
-                              className="neu-btn-secondary text-xs min-h-[44px]"
+                              className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500"
                             >
                               {retryingId === appointment.id ? 'Retrying…' : 'Retry explanation'}
                             </button>
                           </div>
 
-                          <p className="font-medium leading-5">
+                          <p className="font-medium leading-relaxed">
                             Your clinician consultation notes and prescriptions above are fully preserved and confirmed. The AI-formatted explanation is temporarily unavailable.
                           </p>
                         </div>
@@ -575,41 +608,57 @@ export default function PatientDashboard() {
             )}
           </section>
 
-          {/* Priority 3 & 4: Active Reminders & History by Clinician */}
+          {/* Priority 3 & 4: Active Reminders & History by Clinician Bento Grid */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Reminders and Clinicians">
-            <div className="neu-panel p-6 space-y-4">
-              <h2 className="text-base font-bold text-[#26323B]">3. Active Medication Reminders</h2>
+            <div className="med-panel p-6 sm:p-8 space-y-5 bg-white border border-slate-200/90 rounded-3xl shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-base font-extrabold text-slate-900">3. Active Medication Reminders</h2>
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-teal-50 text-teal-800 rounded-full border border-teal-200">
+                  {reminders.length} Active
+                </span>
+              </div>
+
               {reminders.length === 0 ? (
-                <p className="text-xs font-semibold text-[#66727D]">No active medication reminders recorded.</p>
+                <p className="text-xs font-bold text-slate-500 bg-slate-50 p-6 rounded-2xl text-center border border-slate-200">
+                  No active medication reminders recorded.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {reminders.map((r) => (
-                    <div key={r.id} className="neu-inset p-3.5 text-xs space-y-1">
+                    <div key={r.id} className="bg-slate-50 p-4 text-xs space-y-1.5 rounded-2xl border border-slate-200/80">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-[#26323B]">{r.medication} · {r.dosage}</span>
-                        <span className="clinical-badge-success">{r.status}</span>
+                        <span className="font-extrabold text-slate-900 text-sm">{r.medication} · {r.dosage}</span>
+                        <span className="clinical-badge-success">✓ Active</span>
                       </div>
-                      <p className="text-[#56616B] font-medium">{r.frequency} ({r.duration || '7 days'})</p>
-                      {r.instructions && <p className="text-[#66727D] italic text-[11px]">{r.instructions}</p>}
+                      <p className="text-slate-700 font-semibold">{r.frequency} ({r.duration || '7 days'})</p>
+                      {r.instructions && <p className="text-slate-500 italic text-[11px]">{r.instructions}</p>}
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="neu-panel p-6 space-y-4">
-              <h2 className="text-base font-bold text-[#26323B]">4. History by Clinician</h2>
+            <div className="med-panel p-6 sm:p-8 space-y-5 bg-white border border-slate-200/90 rounded-3xl shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-base font-extrabold text-slate-900">4. History by Clinician</h2>
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-full">
+                  {doctors.length} Specialist{doctors.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
               {doctors.length === 0 ? (
-                <p className="text-xs font-semibold text-[#66727D]">Clinician history will appear after your first consultation.</p>
+                <p className="text-xs font-bold text-slate-500 bg-slate-50 p-6 rounded-2xl text-center border border-slate-200">
+                  Clinician history will appear after your first consultation.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {doctors.map((group) => (
-                    <div key={group.doctor?.id} className="neu-card p-4 flex items-center justify-between border border-[#EEF2F7]">
+                    <div key={group.doctor?.id} className="med-card p-4 flex items-center justify-between border border-slate-200/80 rounded-2xl bg-white">
                       <div>
-                        <p className="text-sm font-bold text-[#26323B]">{group.doctor?.user?.name || 'Assigned Clinician'}</p>
-                        <p className="text-xs font-semibold text-[#56616B]">{group.doctor?.specialty || 'Specialist'}</p>
+                        <p className="text-sm font-extrabold text-slate-900">{group.doctor?.user?.name || 'Assigned Clinician'}</p>
+                        <p className="text-xs font-bold text-teal-700">{group.doctor?.specialty || 'Specialist'}</p>
                       </div>
-                      <span className="clinical-badge-neutral">{group.visits.length} Visit{group.visits.length === 1 ? '' : 's'}</span>
+                      <span className="clinical-badge-neutral font-extrabold">{group.visits.length} Visit{group.visits.length === 1 ? '' : 's'}</span>
                     </div>
                   ))}
                 </div>
@@ -621,37 +670,37 @@ export default function PatientDashboard() {
 
       {/* Cancel Confirmation Modal */}
       {cancellingAppt && (
-        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center">
-          <div className="neu-panel bg-[#E0E5EC] max-w-md w-full p-6 space-y-5 border border-[#FECDCA]">
-            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center">
+          <div className="med-panel bg-white max-w-md w-full p-6 space-y-5 border border-red-200 rounded-3xl shadow-2xl">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-extrabold text-[#B42318]">Confirm Appointment Cancellation</h3>
-                <p className="text-xs font-semibold text-[#56616B] mt-0.5">
+                <h3 className="text-base font-extrabold text-red-700">Confirm Appointment Cancellation</h3>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">
                   {cancellingAppt.doctor?.user?.name} · {formatDayOfWeek(cancellingAppt.startTime)}
                 </p>
               </div>
-              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+              <button onClick={() => setCancellingAppt(null)} className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400">×</button>
             </div>
 
-            <div className="text-xs font-medium text-[#26323B] space-y-2">
+            <div className="text-xs font-medium text-slate-800 space-y-2">
               <p>Are you sure you want to cancel this appointment?</p>
-              <p className="text-[#56616B]">Cancelling will release your reserved slot. Email notifications and Google Calendar deletion events will be queued for both you and your doctor.</p>
+              <p className="text-slate-500">Cancelling will release your reserved slot. Email notifications and Google Calendar deletion events will be queued for both you and your doctor.</p>
             </div>
 
             <div>
-              <label htmlFor="cancel-reason" className="block text-xs font-bold text-[#26323B] mb-1">Reason for Cancellation</label>
+              <label htmlFor="cancel-reason" className="block text-xs font-bold text-slate-800 mb-1">Reason for Cancellation</label>
               <input
                 id="cancel-reason"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="e.g. Schedule conflict, feeling better"
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
 
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
-              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Keep Appointment</button>
-              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="neu-btn-primary text-xs bg-[#B42318] hover:bg-[#911C13] min-h-[44px]">
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button onClick={() => setCancellingAppt(null)} className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">Keep Appointment</button>
+              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="med-btn-primary text-xs bg-red-600 hover:bg-red-700 min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500">
                 {cancelBusy ? 'Cancelling…' : 'Confirm Cancellation'}
               </button>
             </div>
@@ -661,42 +710,42 @@ export default function PatientDashboard() {
 
       {/* Reschedule Modal */}
       {reschedulingAppt && (
-        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center overflow-y-auto">
-          <div className="neu-panel bg-[#E0E5EC] max-w-xl w-full p-6 space-y-5 border border-[#EEF2F7] my-8">
-            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
+          <div className="med-panel bg-white max-w-xl w-full p-6 sm:p-8 space-y-5 border border-slate-200/90 rounded-3xl shadow-2xl my-8">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-extrabold text-[#26323B]">Reschedule Appointment Slot</h3>
-                <p className="text-xs font-semibold text-[#5667D8] mt-0.5">
+                <h3 className="text-base font-extrabold text-slate-900">Reschedule Appointment Slot</h3>
+                <p className="text-xs font-bold text-teal-700 mt-0.5">
                   With {reschedulingAppt.doctor?.user?.name || 'Specialist'} ({reschedulingAppt.doctor?.specialty})
                 </p>
               </div>
-              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+              <button onClick={() => setReschedulingAppt(null)} className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400">×</button>
             </div>
 
-            <div className="neu-inset p-3.5 text-xs font-semibold text-[#26323B] space-y-1">
-              <span className="block text-[10px] font-bold text-[#66727D] uppercase tracking-wider">Current Appointment Slot:</span>
+            <div className="bg-slate-50 p-4 text-xs font-semibold text-slate-800 rounded-2xl border border-slate-200/80 space-y-1">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Appointment Slot:</span>
               <p>{formatDayOfWeek(reschedulingAppt.startTime)} at {formatTimeRange(reschedulingAppt.startTime, reschedulingAppt.endTime)}</p>
             </div>
 
             <div>
-              <label htmlFor="reschedule-date" className="block text-xs font-bold text-[#26323B] mb-1">Select New Date:</label>
+              <label htmlFor="reschedule-date" className="block text-xs font-bold text-slate-800 mb-1">Select New Date:</label>
               <input
                 id="reschedule-date"
                 type="date"
                 value={rescheduleDate}
                 onChange={(e) => setRescheduleDate(e.target.value)}
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
 
             <div className="space-y-2">
-              <span className="block text-xs font-bold text-[#26323B]">Select New Time Slot:</span>
+              <span className="block text-xs font-bold text-slate-800">Select New Time Slot:</span>
               {rescheduleLoading ? (
-                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">Calculating available slots…</div>
+                <div className="bg-slate-50 p-6 text-center text-xs font-semibold text-slate-500 rounded-2xl border border-slate-200">Calculating available slots…</div>
               ) : rescheduleSlots.length === 0 ? (
-                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">No available slots found for this date.</div>
+                <div className="bg-slate-50 p-6 text-center text-xs font-semibold text-slate-500 rounded-2xl border border-slate-200">No available slots found for this date.</div>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-48 overflow-y-auto p-1">
                   {rescheduleSlots.map((slot, idx) => {
                     const isSelected = selectedRescheduleSlot?.startTime === slot.startTime;
                     const timeStr = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -705,12 +754,12 @@ export default function PatientDashboard() {
                         key={idx}
                         disabled={!slot.isAvailable}
                         onClick={() => setSelectedRescheduleSlot(slot)}
-                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
                           isSelected
-                            ? 'neu-btn-active bg-[#5667D8] text-white'
+                            ? 'bg-teal-700 text-white border border-teal-700 font-extrabold shadow-sm'
                             : slot.isAvailable
-                            ? 'neu-btn-secondary'
-                            : 'bg-[#D4D9E2]/50 text-[#66727D] cursor-not-allowed line-through shadow-none'
+                            ? 'bg-white border border-slate-200 text-slate-800 hover:bg-slate-100'
+                            : 'bg-slate-100 text-slate-400 border border-slate-200/50 cursor-not-allowed line-through shadow-none'
                         }`}
                       >
                         {timeStr}
@@ -721,12 +770,12 @@ export default function PatientDashboard() {
               )}
             </div>
 
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
-              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Cancel</button>
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button onClick={() => setReschedulingAppt(null)} className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">Cancel</button>
               <button
                 onClick={handleRescheduleSubmit}
                 disabled={!selectedRescheduleSlot || rescheduleBusy}
-                className="neu-btn-primary text-xs min-h-[44px]"
+                className="med-btn-primary text-xs min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500"
               >
                 {rescheduleBusy ? 'Confirming Reschedule…' : 'Confirm New Appointment Time'}
               </button>
@@ -734,6 +783,7 @@ export default function PatientDashboard() {
           </div>
         </div>
       )}
+
     </main>
   );
 }

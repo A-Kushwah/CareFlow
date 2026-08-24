@@ -84,9 +84,11 @@ OPENAI_TIMEOUT_MS="10000"
 | Variable Name | Default / Configured Value | Purpose |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `"file:./dev.db"` | Database connection string (SQLite file path or PostgreSQL URI). |
-| `LLM_PROVIDER` | `"openai"` | AI adapter mode (`openai` for live API, `test` for automated tests, `mock` for offline dev). |
+| `LLM_PROVIDER` | `"openai"` | AI adapter mode (`openai` or `groq` for live API, `test` for automated tests, `mock` for offline dev). |
 | `OPENAI_API_KEY` | `""` | Official OpenAI API key for live structured outputs (Server-side only). |
 | `OPENAI_MODEL` | `"gpt-4o-mini"` | OpenAI model name for clinical generation. |
+| `GROQ_API_KEY` | `""` | Groq API key when `LLM_PROVIDER="groq"` (server-side only). |
+| `GROQ_MODEL` | `"llama-3.3-70b-versatile"` | Groq model name for clinical generation. |
 | `OPENAI_TIMEOUT_MS` | `"10000"` | Request timeout limit in milliseconds. |
 | `JWT_SECRET` | `"carepulse-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
 

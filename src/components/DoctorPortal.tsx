@@ -382,40 +382,45 @@ export default function DoctorPortal() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8" aria-label="Doctor Workspace">
       {/* Workspace Header */}
-      <header className="neu-panel p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="med-panel p-6 sm:p-8 bg-white border border-slate-200/90 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-[#5667D8]">Clinician Workstation</span>
-          <h1 className="text-2xl font-extrabold text-[#26323B] mt-1">Doctor Schedule & Clinical Operations</h1>
-          <p className="text-xs font-medium text-[#56616B] mt-1">
+          <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold inline-block mb-1">
+            Clinician Operations Workstation
+          </span>
+          <h1 className="text-2xl font-extrabold text-slate-900">Doctor Schedule & Clinical Operations</h1>
+          <p className="text-xs font-medium text-slate-500 mt-1">
             Review patient queue, prescribe medication orders, inspect patient history, and manage availability.
           </p>
         </div>
-        <button onClick={loadSchedule} className="neu-btn-secondary text-xs font-bold min-h-[44px]">
+        <button onClick={loadSchedule} className="med-btn-secondary text-xs font-bold min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500">
           Refresh Schedule
         </button>
       </header>
 
       {(message || error) && (
-        <div className={`p-4 border-l-4 text-xs font-bold rounded-r-xl ${error ? 'bg-[#FEEFEE] border-[#B42318] text-[#B42318]' : 'bg-[#E6F4F1] border-[#16866D] text-[#16866D]'}`}>
+        <div className={`p-4 border-l-4 text-xs font-bold rounded-2xl ${error ? 'bg-red-50 border-red-500 text-red-700' : 'bg-emerald-50 border-emerald-500 text-emerald-700'}`}>
           <p>{error || message}</p>
           {error.includes('GOOGLE_CLIENT_ID') && (
-            <p className="text-[11px] font-normal text-[#56616B] mt-1">
-              To enable Google OAuth calendar sync, set <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_ID</code> and <code className="bg-white px-1 py-0.5 rounded border">GOOGLE_CLIENT_SECRET</code> in your local <code className="bg-white px-1 py-0.5 rounded border">.env</code> file.
+            <p className="text-[11px] font-normal text-slate-600 mt-1">
+              To enable Google OAuth calendar sync, set <code className="bg-white px-1 py-0.5 rounded border border-slate-200">GOOGLE_CLIENT_ID</code> and <code className="bg-white px-1 py-0.5 rounded border border-slate-200">GOOGLE_CLIENT_SECRET</code> in your local <code className="bg-white px-1 py-0.5 rounded border border-slate-200">.env</code> file.
             </p>
           )}
         </div>
       )}
 
       {/* Account Integration & Per-User Google Calendar Card */}
-      <section className="neu-panel p-5 border border-[#EEF2F7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <section className="med-panel p-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-extrabold text-[#26323B]">Google Calendar Integration</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold border border-teal-200">
+              📅
+            </div>
+            <h2 className="text-base font-extrabold text-slate-900">Google Calendar Integration</h2>
             <span className={`clinical-badge-${isConnected ? 'success' : isReauth ? 'warning' : 'neutral'}`}>
-              {isConnected ? 'Connected' : isReauth ? 'Re-authorization Required' : 'Not Connected'}
+              {isConnected ? '✓ Connected' : isReauth ? '⚠️ Action Required' : 'Not Connected'}
             </span>
           </div>
-          <p className="text-xs text-[#56616B]">
+          <p className="text-xs font-medium text-slate-600">
             {isConnected
               ? `Authorized for ${accountEmail || 'your Google account'}. Patient appointments auto-sync directly to your professional calendar.`
               : isReauth
@@ -424,19 +429,19 @@ export default function DoctorPortal() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 shrink-0">
           {isConnected ? (
             <button
               onClick={handleDisconnectCalendar}
               disabled={calendarBusy}
-              className="neu-btn-secondary text-xs text-[#B42318] border-[#FECDCA] min-h-[40px]"
+              className="med-btn-secondary text-xs text-red-600 border-red-200 hover:bg-red-50 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 font-bold"
             >
               {calendarBusy ? 'Disconnecting…' : 'Disconnect Calendar'}
             </button>
           ) : (
             <button
               onClick={handleConnectCalendar}
-              className="neu-btn-primary text-xs min-h-[40px]"
+              className="med-btn-primary text-xs min-h-[44px] shadow-md focus-visible:ring-2 focus-visible:ring-teal-500 font-bold"
             >
               {isReauth ? 'Re-authorize Google Calendar' : 'Connect Google Calendar'}
             </button>
@@ -445,12 +450,14 @@ export default function DoctorPortal() {
       </section>
 
       {/* Role-Specific Navigation Tabs */}
-      <nav className="neu-inset p-1.5 flex flex-wrap gap-2" aria-label="Doctor workspace sections">
+      <nav className="bg-slate-100/80 p-1.5 rounded-2xl flex flex-wrap gap-2 border border-slate-200/60" aria-label="Doctor workspace sections">
         <button
           onClick={() => setSection('schedule')}
           aria-current={section === 'schedule' ? 'page' : undefined}
-          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-            section === 'schedule' ? 'neu-btn-active bg-[#EEF2F7]' : 'text-[#56616B] hover:text-[#26323B]'
+          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+            section === 'schedule'
+              ? 'bg-white text-teal-800 shadow-sm border border-slate-200/80 font-extrabold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
           }`}
         >
           Daily Schedule & Consultations ({appointments.length})
@@ -458,8 +465,10 @@ export default function DoctorPortal() {
         <button
           onClick={() => setSection('history')}
           aria-current={section === 'history' ? 'page' : undefined}
-          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-            section === 'history' ? 'neu-btn-active bg-[#EEF2F7]' : 'text-[#56616B] hover:text-[#26323B]'
+          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+            section === 'history'
+              ? 'bg-white text-teal-800 shadow-sm border border-slate-200/80 font-extrabold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
           }`}
         >
           Patient History Explorer ({uniquePatients.length})
@@ -467,8 +476,10 @@ export default function DoctorPortal() {
         <button
           onClick={() => setSection('leave')}
           aria-current={section === 'leave' ? 'page' : undefined}
-          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-            section === 'leave' ? 'neu-btn-active bg-[#EEF2F7]' : 'text-[#56616B] hover:text-[#26323B]'
+          className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+            section === 'leave'
+              ? 'bg-white text-teal-800 shadow-sm border border-slate-200/80 font-extrabold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
           }`}
         >
           Manage Leave & Out of Office
@@ -477,47 +488,50 @@ export default function DoctorPortal() {
 
       {/* Section 1: Schedule */}
       {section === 'schedule' && (
-        <section className="neu-panel p-6 space-y-6">
-          <div className="flex justify-between items-center">
+        <section className="med-panel p-6 sm:p-8 space-y-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-lg font-bold text-[#26323B]">Appointments & Consultation Queue</h2>
-              <p className="text-xs font-medium text-[#56616B]">Select an appointment to open consultation entry.</p>
+              <h2 className="text-lg font-extrabold text-slate-900">Appointments & Consultation Queue</h2>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">Select an appointment to open consultation entry.</p>
             </div>
+            <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold">
+              {appointments.length} Total Patients
+            </span>
           </div>
 
           {loading ? (
-            <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">Loading appointments…</div>
+            <div className="bg-slate-50 p-12 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">Loading appointments…</div>
           ) : appointments.length === 0 ? (
-            <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">No appointments scheduled.</div>
+            <div className="bg-slate-50 p-12 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">No appointments scheduled.</div>
           ) : (
             <div className="space-y-4">
               {appointments.map((a) => (
-                <div key={a.id} className="neu-card p-5 border border-[#EEF2F7] space-y-4">
-                  <div className="grid md:grid-cols-[220px_1fr_auto] gap-4 items-start">
-                    <div className="neu-inset p-3.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#5667D8]">Scheduled Time</span>
-                      <p className="text-sm font-extrabold text-[#26323B]">{formatDay(a.startTime)}</p>
-                      <p className="text-xs font-bold text-[#5667D8]">{formatTimeRange(a.startTime, a.endTime)}</p>
+                <div key={a.id} className="med-card p-6 border border-slate-200/90 space-y-4 rounded-2xl bg-white shadow-xs">
+                  <div className="grid md:grid-cols-[240px_1fr_auto] gap-5 items-start">
+                    <div className="bg-slate-50 p-4 space-y-1 rounded-2xl border border-slate-200/80">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-700">Scheduled Time</span>
+                      <p className="text-sm font-extrabold text-slate-900">{formatDay(a.startTime)}</p>
+                      <p className="text-xs font-bold text-teal-700">{formatTimeRange(a.startTime, a.endTime)}</p>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-base font-bold text-[#26323B]">{a.patient?.name}</span>
-                        <span className="text-xs font-medium text-[#56616B]">({a.patient?.email})</span>
-                        <span className={`clinical-badge-${a.status === 'CONFIRMED' ? 'success' : a.status === 'COMPLETED' ? 'neutral' : 'warning'}`}>
+                        <span className="text-base font-extrabold text-slate-900">{a.patient?.name}</span>
+                        <span className="text-xs font-bold text-slate-500">({a.patient?.email})</span>
+                        <span className={`clinical-badge-${a.status === 'CONFIRMED' ? 'success' : a.status === 'COMPLETED' ? 'neutral' : 'warning'} font-extrabold`}>
                           {a.status}
                         </span>
                       </div>
 
                       {a.symptoms && (
-                        <div className="text-xs text-[#26323B] bg-[#EEF2F7] p-2.5 rounded-xl border border-[#D4D9E2]">
-                          <strong className="font-bold text-[#26323B]">Chief Complaint:</strong> {a.symptoms}
+                        <div className="text-xs text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200/80 font-medium">
+                          <strong className="font-bold text-slate-900">Chief Complaint:</strong> {a.symptoms}
                         </div>
                       )}
 
                       {a.aiPreSummary ? (
-                        <div className="text-xs text-[#5667D8] bg-[#E8EAFA] p-2.5 rounded-xl border border-[#5667D8]/20">
-                          <strong className="font-bold">AI Pre-Visit Triage Summary:</strong> {a.aiPreSummary}
+                        <div className="text-xs text-teal-900 bg-teal-50 p-3 rounded-xl border border-teal-200 font-semibold">
+                          <strong className="font-extrabold text-teal-800">✨ AI Pre-Visit Triage Summary:</strong> {a.aiPreSummary}
                         </div>
                       ) : (
                         a.symptoms && (
@@ -530,7 +544,7 @@ export default function DoctorPortal() {
                                 handleGeneratePreSummary(a.id, a.symptoms);
                               }}
                               disabled={generatingPreId === a.id}
-                              className="text-xs font-bold text-[#5667D8] hover:underline flex items-center gap-1.5"
+                              className="text-xs font-extrabold text-teal-700 hover:text-teal-900 hover:underline flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md p-1"
                             >
                               {generatingPreId === a.id ? '✨ Generating AI Pre-Visit Triage…' : '✨ Generate AI Pre-Visit Triage Summary'}
                             </button>
@@ -540,10 +554,10 @@ export default function DoctorPortal() {
                     </div>
 
                     <div className="flex flex-col gap-2 min-w-[170px]">
-                      <button onClick={() => openApptModal(a)} className="neu-btn-primary text-xs justify-center min-h-[40px]">
+                      <button onClick={() => openApptModal(a)} className="med-btn-primary text-xs justify-center min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500 shadow-md">
                         {a.status === 'COMPLETED' ? 'Edit Consultation' : 'Conduct Consultation'}
                       </button>
-                      <button onClick={() => fetchPatientHistory(a.patientId)} className="neu-btn-secondary text-xs justify-center min-h-[40px]">
+                      <button onClick={() => fetchPatientHistory(a.patientId)} className="med-btn-secondary text-xs justify-center min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">
                         View Patient History
                       </button>
                       {a.status === 'CONFIRMED' && (
@@ -553,13 +567,13 @@ export default function DoctorPortal() {
                               setReschedulingAppt(a);
                               setRescheduleDate(new Date(a.startTime).toISOString().slice(0, 10));
                             }}
-                            className="neu-btn-secondary text-[11px] min-h-[36px] flex-1 justify-center"
+                            className="med-btn-secondary text-[11px] min-h-[38px] flex-1 justify-center font-bold focus-visible:ring-2 focus-visible:ring-teal-500"
                           >
                             Reschedule
                           </button>
                           <button
                             onClick={() => setCancellingAppt(a)}
-                            className="neu-btn-secondary text-[11px] min-h-[36px] flex-1 justify-center text-[#B42318] border-[#FECDCA]"
+                            className="med-btn-secondary text-[11px] min-h-[38px] flex-1 justify-center text-red-600 border-red-200 hover:bg-red-50 font-bold focus-visible:ring-2 focus-visible:ring-teal-500"
                           >
                             Cancel
                           </button>
@@ -576,19 +590,19 @@ export default function DoctorPortal() {
 
       {/* Section 2: Patient History */}
       {section === 'history' && (
-        <section className="neu-panel p-6 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-[#26323B]">Patient History Explorer</h2>
-            <p className="text-xs font-medium text-[#56616B]">Historical consultation notes and prescriptions for your assigned patients.</p>
+        <section className="med-panel p-6 sm:p-8 space-y-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm">
+          <div className="border-b border-slate-100 pb-4">
+            <h2 className="text-lg font-extrabold text-slate-900">Patient History Explorer</h2>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Historical consultation notes and prescriptions for your assigned patients.</p>
           </div>
 
-          <div className="flex flex-wrap gap-2 pb-2 border-b border-[#D4D9E2]">
+          <div className="flex flex-wrap gap-2 pb-2 border-b border-slate-200">
             {uniquePatients.map((p: any) => (
               <button
                 key={p.id}
                 onClick={() => fetchPatientHistory(p.id)}
-                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all min-h-[40px] ${
-                  selectedPatientId === p.id ? 'neu-btn-active bg-[#5667D8] text-white' : 'neu-btn-secondary'
+                className={`py-2 px-4 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                  selectedPatientId === p.id ? 'bg-teal-700 text-white font-extrabold shadow-sm' : 'med-btn-secondary'
                 }`}
               >
                 {p.name}
@@ -597,37 +611,37 @@ export default function DoctorPortal() {
           </div>
 
           {historyLoading ? (
-            <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">Loading patient history…</div>
+            <div className="bg-slate-50 p-12 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">Loading patient history…</div>
           ) : !patientHistory ? (
-            <div className="neu-inset p-8 text-center text-xs font-semibold text-[#66727D]">Select a patient above to view history.</div>
+            <div className="bg-slate-50 p-12 text-center text-xs font-bold text-slate-500 rounded-2xl border border-slate-200">Select a patient above to view history.</div>
           ) : (
             <div className="space-y-6">
-              <div className="neu-card p-5 border border-[#EEF2F7]">
-                <h3 className="text-base font-extrabold text-[#26323B]">{patientHistory.patient?.name}</h3>
-                <p className="text-xs font-semibold text-[#56616B]">{patientHistory.patient?.email}</p>
+              <div className="med-card p-5 border border-slate-200/80 bg-slate-50/60 rounded-2xl">
+                <h3 className="text-base font-extrabold text-slate-900">{patientHistory.patient?.name}</h3>
+                <p className="text-xs font-bold text-slate-500">{patientHistory.patient?.email}</p>
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#26323B]">Past Consultation History ({patientHistory.history?.length || 0})</h4>
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">Past Consultation History ({patientHistory.history?.length || 0})</h4>
                 {patientHistory.history?.map((h: any) => (
-                  <div key={h.id} className="neu-card p-5 border border-[#EEF2F7] space-y-3">
-                    <div className="flex justify-between items-center border-b border-[#D4D9E2] pb-2">
-                      <span className="text-xs font-extrabold text-[#26323B]">{formatDay(h.startTime)} at {formatTimeRange(h.startTime, h.endTime)}</span>
-                      <span className="clinical-badge-neutral">{h.status}</span>
+                  <div key={h.id} className="med-card p-5 border border-slate-200/80 rounded-2xl space-y-3 bg-white">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                      <span className="text-xs font-extrabold text-slate-900">{formatDay(h.startTime)} at {formatTimeRange(h.startTime, h.endTime)}</span>
+                      <span className="clinical-badge-neutral font-extrabold">{h.status}</span>
                     </div>
-                    {h.symptoms && <p className="text-xs text-[#56616B]"><strong className="text-[#26323B]">Symptoms:</strong> {h.symptoms}</p>}
+                    {h.symptoms && <p className="text-xs text-slate-700 font-medium"><strong className="text-slate-900">Symptoms:</strong> {h.symptoms}</p>}
                     {h.consultNotes && (
-                      <div className="bg-[#EEF2F7] p-3 rounded-xl text-xs text-[#26323B] space-y-1">
-                        <strong className="block text-[11px] font-bold uppercase text-[#5667D8]">Doctor Notes:</strong>
+                      <div className="bg-slate-50 p-3.5 rounded-xl text-xs text-slate-800 space-y-1 border border-slate-200/70 font-medium">
+                        <strong className="block text-[11px] font-bold uppercase text-teal-700">Doctor Notes:</strong>
                         <p className="whitespace-pre-wrap">{h.consultNotes}</p>
                       </div>
                     )}
                     {h.prescriptions?.length > 0 && (
-                      <div className="bg-[#E6F4F1] p-3 rounded-xl text-xs space-y-1 text-[#16866D]">
-                        <strong className="block text-[11px] font-bold uppercase">Prescriptions:</strong>
+                      <div className="bg-emerald-50/70 p-3.5 rounded-xl text-xs space-y-1 text-emerald-900 border border-emerald-200 font-medium">
+                        <strong className="block text-[11px] font-bold uppercase text-emerald-800">Prescriptions:</strong>
                         <ul className="list-disc pl-4 space-y-0.5">
                           {h.prescriptions.map((px: any, idx: number) => (
-                            <li key={idx}><strong className="font-bold">{px.medication}</strong> {px.dosage} ({px.frequency}, {px.duration})</li>
+                            <li key={idx}><strong className="font-extrabold text-slate-900">{px.medication}</strong> {px.dosage} ({px.frequency}, {px.duration})</li>
                           ))}
                         </ul>
                       </div>
@@ -642,46 +656,46 @@ export default function DoctorPortal() {
 
       {/* Section 3: Leave */}
       {section === 'leave' && (
-        <section className="neu-panel p-6 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-[#26323B]">Manage Doctor Leave & Out of Office</h2>
-            <p className="text-xs font-medium text-[#56616B]">Submitting leave will automatically cancel conflicting patient appointments and queue email notifications.</p>
+        <section className="med-panel p-6 sm:p-8 space-y-6 bg-white border border-slate-200/90 rounded-3xl shadow-sm">
+          <div className="border-b border-slate-100 pb-4">
+            <h2 className="text-lg font-extrabold text-slate-900">Manage Doctor Leave & Out of Office</h2>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">Submitting leave will automatically cancel conflicting patient appointments and queue email notifications.</p>
           </div>
 
-          <form onSubmit={handleLeaveSubmit} className="max-w-xl space-y-4">
+          <form onSubmit={handleLeaveSubmit} className="max-w-xl space-y-5">
             <div>
-              <label className="block text-xs font-bold text-[#26323B] mb-1">Start Date</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Start Date</label>
               <input
                 type="date"
                 required
                 value={leave.start}
                 onChange={(e) => setLeave({ ...leave, start: e.target.value })}
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-[#26323B] mb-1">End Date</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1">End Date</label>
               <input
                 type="date"
                 required
                 value={leave.end}
                 onChange={(e) => setLeave({ ...leave, end: e.target.value })}
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-[#26323B] mb-1">Reason for Leave</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Reason for Leave</label>
               <textarea
                 required
                 rows={3}
                 value={leave.reason}
                 onChange={(e) => setLeave({ ...leave, reason: e.target.value })}
                 placeholder="e.g. Medical Conference, Annual Leave"
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
 
-            <button type="submit" disabled={busy} className="neu-btn-primary text-xs w-full min-h-[44px]">
+            <button type="submit" disabled={busy} className="med-btn-primary text-xs w-full min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500">
               {busy ? 'Submitting Leave…' : 'Submit Out of Office Period'}
             </button>
           </form>
@@ -690,20 +704,20 @@ export default function DoctorPortal() {
 
       {/* Consultation Entry Modal */}
       {selectedAppt && (
-        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center overflow-y-auto">
-          <div className="neu-panel bg-[#E0E5EC] max-w-3xl w-full p-6 space-y-6 border border-[#EEF2F7] my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
+          <div className="med-panel bg-white max-w-3xl w-full p-6 sm:p-8 space-y-6 border border-slate-200/90 rounded-3xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-extrabold text-[#26323B]">Conduct Consultation — {selectedAppt.patient?.name}</h3>
-                <p className="text-xs font-semibold text-[#5667D8]">{formatDay(selectedAppt.startTime)} ({formatTimeRange(selectedAppt.startTime, selectedAppt.endTime)})</p>
+                <h3 className="text-lg font-extrabold text-slate-900">Conduct Consultation — {selectedAppt.patient?.name}</h3>
+                <p className="text-xs font-bold text-teal-700 mt-0.5">{formatDay(selectedAppt.startTime)} ({formatTimeRange(selectedAppt.startTime, selectedAppt.endTime)})</p>
               </div>
-              <button onClick={() => setSelectedAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+              <button onClick={() => setSelectedAppt(null)} className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400">×</button>
             </div>
 
             <form onSubmit={handlePostVisitSubmit} className="space-y-6">
               <div>
-                <label htmlFor="clinical-obs" className="block text-xs font-extrabold text-[#26323B] mb-1">
-                  Clinical Observations & Examination Notes <span className="text-[#B42318]">*</span>
+                <label htmlFor="clinical-obs" className="block text-xs font-extrabold text-slate-900 mb-1.5">
+                  Clinical Observations & Examination Notes <span className="text-red-600">*</span>
                 </label>
                 <textarea
                   id="clinical-obs"
@@ -712,79 +726,79 @@ export default function DoctorPortal() {
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
                   placeholder="Record objective clinical observations, physical exam results, and findings…"
-                  className="neu-input text-xs w-full p-3.5 font-semibold text-[#26323B]"
+                  className="med-input text-xs w-full p-3.5 font-semibold text-slate-900 focus-visible:ring-2 focus-visible:ring-teal-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="clinical-assessment" className="block text-xs font-extrabold text-[#26323B] mb-1">Confirmed Clinical Diagnosis / Assessment</label>
+                <label htmlFor="clinical-assessment" className="block text-xs font-extrabold text-slate-900 mb-1.5">Confirmed Clinical Diagnosis / Assessment</label>
                 <input
                   id="clinical-assessment"
                   type="text"
                   value={confirmedAssessment}
                   onChange={(e) => setConfirmedAssessment(e.target.value)}
                   placeholder="e.g. Primary Hypertension (ICD-10 I10), Acute Sinusitis"
-                  className="neu-input text-xs w-full p-3 font-semibold text-[#26323B] min-h-[44px]"
+                  className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="clinical-instructions" className="block text-xs font-extrabold text-[#26323B] mb-1">Follow-Up Instructions for Patient</label>
+                <label htmlFor="clinical-instructions" className="block text-xs font-extrabold text-slate-900 mb-1.5">Follow-Up Instructions for Patient</label>
                 <textarea
                   id="clinical-instructions"
                   rows={2}
                   value={followUpInstructions}
                   onChange={(e) => setFollowUpInstructions(e.target.value)}
                   placeholder="e.g. Schedule follow-up ECG in 2 weeks, monitor blood pressure twice daily"
-                  className="neu-input text-xs w-full p-3 font-semibold text-[#26323B]"
+                  className="med-input text-xs w-full p-3 font-semibold text-slate-900 focus-visible:ring-2 focus-visible:ring-teal-500"
                 />
               </div>
 
-              <div className="bg-[#E6F4F1] border border-[#9EE2D4] rounded-2xl p-5 space-y-4">
+              <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#16866D]">Prescription Orders</h4>
-                    <p className="text-[11px] font-semibold text-[#56616B]">Doctor-authored prescriptions saved directly to database before AI processing.</p>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">Prescription Orders</h4>
+                    <p className="text-[11px] font-semibold text-slate-600">Doctor-authored prescriptions saved directly to database before AI processing.</p>
                   </div>
-                  <button type="button" onClick={addPrescription} className="neu-btn-secondary text-xs min-h-[40px] text-[#16866D] border-[#9EE2D4]">
+                  <button type="button" onClick={addPrescription} className="med-btn-secondary text-xs min-h-[40px] text-emerald-800 border-emerald-300 font-bold focus-visible:ring-2 focus-visible:ring-teal-500">
                     + Add Medication
                   </button>
                 </div>
 
                 {prescriptions.length === 0 ? (
-                  <p className="text-xs font-semibold text-[#66727D] italic">No medications prescribed for this consultation.</p>
+                  <p className="text-xs font-semibold text-slate-500 italic">No medications prescribed for this consultation.</p>
                 ) : (
                   <div className="space-y-3">
                     {prescriptions.map((p, idx) => (
-                      <div key={idx} className="bg-white border border-[#9EE2D4] rounded-xl p-3.5 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                      <div key={idx} className="bg-white border border-emerald-200 rounded-xl p-4 space-y-3 shadow-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                           <input
                             type="text"
                             placeholder="Medication Name"
                             value={p.medication}
                             onChange={(e) => updatePrescription(idx, 'medication', e.target.value)}
-                            className="neu-input text-xs p-2.5 font-bold text-[#26323B]"
+                            className="med-input text-xs p-2.5 font-bold text-slate-900"
                           />
                           <input
                             type="text"
                             placeholder="Dosage (e.g. 500mg)"
                             value={p.dosage}
                             onChange={(e) => updatePrescription(idx, 'dosage', e.target.value)}
-                            className="neu-input text-xs p-2.5 font-bold text-[#26323B]"
+                            className="med-input text-xs p-2.5 font-bold text-slate-900"
                           />
                           <input
                             type="text"
                             placeholder="Frequency (e.g. Twice daily)"
                             value={p.frequency}
                             onChange={(e) => updatePrescription(idx, 'frequency', e.target.value)}
-                            className="neu-input text-xs p-2.5 font-bold text-[#26323B]"
+                            className="med-input text-xs p-2.5 font-bold text-slate-900"
                           />
                           <input
                             type="text"
                             placeholder="Duration (e.g. 7 days)"
                             value={p.duration}
                             onChange={(e) => updatePrescription(idx, 'duration', e.target.value)}
-                            className="neu-input text-xs p-2.5 font-bold text-[#26323B]"
+                            className="med-input text-xs p-2.5 font-bold text-slate-900"
                           />
                         </div>
                         <div className="flex items-center gap-2">
@@ -793,12 +807,12 @@ export default function DoctorPortal() {
                             placeholder="Special Instructions (e.g. Take after meals)"
                             value={p.instructions}
                             onChange={(e) => updatePrescription(idx, 'instructions', e.target.value)}
-                            className="neu-input text-xs p-2.5 font-medium text-[#26323B] flex-1"
+                            className="med-input text-xs p-2.5 font-medium text-slate-900 flex-1"
                           />
                           <button
                             type="button"
                             onClick={() => removePrescription(idx)}
-                            className="neu-btn-secondary text-xs text-[#B42318] p-2 border-[#FECDCA] min-h-[40px]"
+                            className="med-btn-secondary text-xs text-red-600 p-2 border-red-200 min-h-[40px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500"
                           >
                             Remove
                           </button>
@@ -810,33 +824,33 @@ export default function DoctorPortal() {
               </div>
 
               {modalMessage && (
-                <div className="text-xs text-[#027A48] bg-[#ECFDF3] p-3 rounded-xl border border-[#ABE5C8] font-extrabold flex items-center gap-2">
+                <div className="text-xs text-emerald-800 bg-emerald-50 p-3.5 rounded-2xl border border-emerald-300 font-extrabold flex items-center gap-2">
                   {modalMessage}
                 </div>
               )}
               {modalError && (
-                <div className="text-xs text-[#B42318] bg-[#FEF3F2] p-3 rounded-xl border border-[#FECDCA] font-extrabold flex items-center gap-2">
+                <div className="text-xs text-red-700 bg-red-50 p-3.5 rounded-2xl border border-red-200 font-extrabold flex items-center gap-2">
                   ⚠️ {modalError}
                 </div>
               )}
               {aiError && (
-                <div className="text-xs text-[#B42318] bg-[#FEF3F2] p-3 rounded-xl border border-[#FECDCA] font-bold flex items-center gap-2">
+                <div className="text-xs text-red-700 bg-red-50 p-3.5 rounded-2xl border border-red-200 font-bold flex items-center gap-2">
                   ⚠️ AI Notice: {aiError}
                 </div>
               )}
 
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
-                <button type="button" onClick={() => setSelectedAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Close</button>
-                <button type="submit" disabled={busy} className="neu-btn-primary text-xs min-h-[44px]">
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => setSelectedAppt(null)} className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">Close</button>
+                <button type="submit" disabled={busy} className="med-btn-primary text-xs min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500">
                   {busy ? 'Saving Clinical Record…' : summary ? '✓ Saved & Generated (Update Record)' : 'Save Consultation Record & Generate Summary'}
                 </button>
               </div>
             </form>
 
             {summary && (
-              <div className="bg-[#EEF2F7] border border-[#5667D8]/30 rounded-2xl p-5 text-xs space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-wide text-[#5667D8]">Patient-Friendly Explanation Generated</h4>
-                <p className="leading-5 font-medium text-[#26323B]">{summary.summary}</p>
+              <div className="bg-teal-50/60 border border-teal-200 rounded-2xl p-5 text-xs space-y-3">
+                <h4 className="font-bold text-xs uppercase tracking-wide text-teal-900">Patient-Friendly Explanation Generated</h4>
+                <p className="leading-relaxed font-semibold text-slate-800">{summary.summary}</p>
               </div>
             )}
           </div>
@@ -845,27 +859,27 @@ export default function DoctorPortal() {
 
       {/* Cancel Modal */}
       {cancellingAppt && (
-        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center">
-          <div className="neu-panel bg-[#E0E5EC] max-w-md w-full p-6 space-y-5 border border-[#FECDCA]">
-            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center">
+          <div className="med-panel bg-white max-w-md w-full p-6 space-y-5 border border-red-200 rounded-3xl shadow-2xl">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-extrabold text-[#B42318]">Confirm Appointment Cancellation</h3>
-                <p className="text-xs font-semibold text-[#56616B] mt-0.5">{cancellingAppt.patient?.name} · {formatDay(cancellingAppt.startTime)}</p>
+                <h3 className="text-base font-extrabold text-red-700">Confirm Appointment Cancellation</h3>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">{cancellingAppt.patient?.name} · {formatDay(cancellingAppt.startTime)}</p>
               </div>
-              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+              <button onClick={() => setCancellingAppt(null)} className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400">×</button>
             </div>
             <div>
-              <label htmlFor="doc-cancel-reason" className="block text-xs font-bold text-[#26323B] mb-1">Reason for Cancellation</label>
+              <label htmlFor="doc-cancel-reason" className="block text-xs font-bold text-slate-800 mb-1">Reason for Cancellation</label>
               <input
                 id="doc-cancel-reason"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
-              <button onClick={() => setCancellingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Keep Appointment</button>
-              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="neu-btn-primary text-xs bg-[#B42318] hover:bg-[#911C13] min-h-[44px]">
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button onClick={() => setCancellingAppt(null)} className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">Keep Appointment</button>
+              <button onClick={handleCancelSubmit} disabled={cancelBusy} className="med-btn-primary text-xs bg-red-600 hover:bg-red-700 min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500">
                 {cancelBusy ? 'Cancelling…' : 'Confirm Cancellation'}
               </button>
             </div>
@@ -875,33 +889,33 @@ export default function DoctorPortal() {
 
       {/* Reschedule Modal */}
       {reschedulingAppt && (
-        <div className="fixed inset-0 z-50 bg-[#26323B]/60 p-4 flex items-center justify-center overflow-y-auto">
-          <div className="neu-panel bg-[#E0E5EC] max-w-xl w-full p-6 space-y-5 border border-[#EEF2F7] my-8">
-            <div className="flex justify-between items-start border-b border-[#D4D9E2] pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
+          <div className="med-panel bg-white max-w-xl w-full p-6 sm:p-8 space-y-5 border border-slate-200/90 rounded-3xl shadow-2xl my-8">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-base font-extrabold text-[#26323B]">Reschedule Patient Appointment</h3>
-                <p className="text-xs font-semibold text-[#5667D8] mt-0.5">Patient: {reschedulingAppt.patient?.name}</p>
+                <h3 className="text-base font-extrabold text-slate-900">Reschedule Patient Appointment</h3>
+                <p className="text-xs font-bold text-teal-700 mt-0.5">Patient: {reschedulingAppt.patient?.name}</p>
               </div>
-              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">×</button>
+              <button onClick={() => setReschedulingAppt(null)} className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400">×</button>
             </div>
             <div>
-              <label htmlFor="doc-reschedule-date" className="block text-xs font-bold text-[#26323B] mb-1">Select New Date:</label>
+              <label htmlFor="doc-reschedule-date" className="block text-xs font-bold text-slate-800 mb-1">Select New Date:</label>
               <input
                 id="doc-reschedule-date"
                 type="date"
                 value={rescheduleDate}
                 onChange={(e) => setRescheduleDate(e.target.value)}
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
             <div className="space-y-2">
-              <span className="block text-xs font-bold text-[#26323B]">Select Available Slot:</span>
+              <span className="block text-xs font-bold text-slate-800">Select Available Slot:</span>
               {rescheduleLoading ? (
-                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">Calculating available slots…</div>
+                <div className="bg-slate-50 p-6 text-center text-xs font-semibold text-slate-500 rounded-2xl border border-slate-200">Calculating available slots…</div>
               ) : rescheduleSlots.length === 0 ? (
-                <div className="neu-inset p-6 text-center text-xs font-semibold text-[#66727D]">No available slots found for this date.</div>
+                <div className="bg-slate-50 p-6 text-center text-xs font-semibold text-slate-500 rounded-2xl border border-slate-200">No available slots found for this date.</div>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-48 overflow-y-auto p-1">
                   {rescheduleSlots.map((slot, idx) => {
                     const isSelected = selectedRescheduleSlot?.startTime === slot.startTime;
                     const timeStr = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -910,12 +924,12 @@ export default function DoctorPortal() {
                         key={idx}
                         disabled={!slot.isAvailable}
                         onClick={() => setSelectedRescheduleSlot(slot)}
-                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
                           isSelected
-                            ? 'neu-btn-active bg-[#5667D8] text-white'
+                            ? 'bg-teal-700 text-white border border-teal-700 font-extrabold shadow-sm'
                             : slot.isAvailable
-                            ? 'neu-btn-secondary'
-                            : 'bg-[#D4D9E2]/50 text-[#66727D] cursor-not-allowed line-through shadow-none'
+                            ? 'bg-white border border-slate-200 text-slate-800 hover:bg-slate-100'
+                            : 'bg-slate-100 text-slate-400 border border-slate-200/50 cursor-not-allowed line-through shadow-none'
                         }`}
                       >
                         {timeStr}
@@ -925,12 +939,12 @@ export default function DoctorPortal() {
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#D4D9E2]">
-              <button onClick={() => setReschedulingAppt(null)} className="neu-btn-secondary text-xs min-h-[44px]">Cancel</button>
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button onClick={() => setReschedulingAppt(null)} className="med-btn-secondary text-xs min-h-[44px] font-bold focus-visible:ring-2 focus-visible:ring-teal-500">Cancel</button>
               <button
                 onClick={handleRescheduleSubmit}
                 disabled={!selectedRescheduleSlot || rescheduleBusy}
-                className="neu-btn-primary text-xs min-h-[44px]"
+                className="med-btn-primary text-xs min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500"
               >
                 {rescheduleBusy ? 'Rescheduling…' : 'Confirm New Time Slot'}
               </button>

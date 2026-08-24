@@ -13,6 +13,7 @@ export default function AuthModal({
   standalone?: boolean;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [loginTab, setLoginTab] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -87,76 +88,108 @@ export default function AuthModal({
   const fillDemoAccount = (role: Role) => {
     setErrorMsg('');
     if (role === Role.ADMIN) {
-      setEmail('admin@careflow.com');
+      setLoginTab('admin');
+      setEmail('admin@carepulse.com');
       setPassword('admin123');
     } else if (role === Role.DOCTOR) {
-      setEmail('sarah.jenkins@careflow.com');
-      setPassword('admin123');
+      setLoginTab('doctor');
+      setEmail('sarah.jenkins@carepulse.com');
+      setPassword('doctor123');
     } else {
+      setLoginTab('patient');
       setEmail('alex.rivera@example.com');
       setPassword('patient123');
     }
   };
 
   return (
-    <div className={standalone ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-[#26323B]/60 p-4'}>
-      <div className="neu-panel bg-[#E0E5EC] max-w-sm w-full p-6 space-y-5 shadow-2xl border border-[#EEF2F7]">
+    <div
+      className={standalone ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200'}
+      role={standalone ? undefined : 'dialog'}
+      aria-modal={standalone ? undefined : 'true'}
+      aria-labelledby="auth-modal-title"
+    >
+      <div className="med-panel bg-white max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-200/90 rounded-3xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#D4D9E2] pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <h3 className="text-base font-extrabold text-[#26323B]">
-              {mode === 'login' ? 'CareFlow Authentication' : 'Create Patient Account'}
+            <h3 id="auth-modal-title" className="text-lg font-extrabold text-slate-900">
+              {mode === 'login' ? 'CareFlow Workstation Sign In' : 'Register Patient Account'}
             </h3>
-            <p className="text-xs font-semibold text-[#56616B]">
-              {mode === 'login' ? 'Sign in to access workspace' : 'Register patient account'}
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              {mode === 'login' ? 'Select workspace role or enter credentials' : 'Create patient record to book appointments'}
             </p>
           </div>
           {!standalone && (
             <button
               onClick={onClose}
-              className="neu-btn-secondary text-sm font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Close authentication modal"
+              className="med-btn-secondary text-base font-bold p-1 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-500"
+              aria-label="Close authentication dialog"
             >
               ×
             </button>
           )}
         </div>
 
-        {errorMsg && (
-          <div className="p-3 rounded-xl bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold">
-            {errorMsg}
+        {/* Role Tab Navigation for Login Mode */}
+        {mode === 'login' && (
+          <div className="space-y-3">
+            <div className="bg-slate-100/80 p-1 rounded-2xl flex items-center gap-1 border border-slate-200/60" role="tablist" aria-label="Portal Role Selection">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={loginTab === 'patient'}
+                onClick={() => {
+                  setLoginTab('patient');
+                  fillDemoAccount(Role.PATIENT);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all min-h-[40px] flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                  loginTab === 'patient'
+                    ? 'bg-white text-teal-800 shadow-xs font-extrabold border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Patient</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={loginTab === 'doctor'}
+                onClick={() => {
+                  setLoginTab('doctor');
+                  fillDemoAccount(Role.DOCTOR);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all min-h-[40px] flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                  loginTab === 'doctor'
+                    ? 'bg-white text-teal-800 shadow-xs font-extrabold border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Doctor</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={loginTab === 'admin'}
+                onClick={() => {
+                  setLoginTab('admin');
+                  fillDemoAccount(Role.ADMIN);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all min-h-[40px] flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                  loginTab === 'admin'
+                    ? 'bg-white text-teal-800 shadow-xs font-extrabold border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Admin</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Demo Accounts Presets */}
-        {mode === 'login' && (
-          <div className="neu-inset p-3 space-y-2">
-            <span className="block text-[10px] font-extrabold text-[#56616B] uppercase tracking-wider">
-              Evaluation Credentials
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => fillDemoAccount(Role.PATIENT)}
-                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
-              >
-                Patient
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount(Role.DOCTOR)}
-                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
-              >
-                Doctor
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount(Role.ADMIN)}
-                className="neu-btn-secondary py-1.5 px-2 text-[11px] font-bold min-h-[36px]"
-              >
-                Admin
-              </button>
-            </div>
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold flex items-center justify-between" role="alert">
+            <span>{errorMsg}</span>
           </div>
         )}
 
@@ -164,49 +197,71 @@ export default function AuthModal({
         <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
           {mode === 'register' && (
             <div>
-              <label htmlFor="reg-name" className="block text-xs font-bold text-[#26323B] mb-1">Full Name *</label>
+              <label htmlFor="reg-name" className="block text-xs font-bold text-slate-800 mb-1">
+                Full Name *
+              </label>
               <input
                 id="reg-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Alex Rivera"
-                className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+                className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
               />
             </div>
           )}
 
           <div>
-            <label htmlFor="auth-email" className="block text-xs font-bold text-[#26323B] mb-1">Email Address *</label>
+            <label htmlFor="auth-email" className="block text-xs font-bold text-slate-800 mb-1">
+              Email Address *
+            </label>
             <input
               id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@careflow.com"
-              className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
             />
           </div>
 
           <div>
-            <label htmlFor="auth-password" className="block text-xs font-bold text-[#26323B] mb-1">Password *</label>
+            <label htmlFor="auth-password" className="block text-xs font-bold text-slate-800 mb-1">
+              Password *
+            </label>
             <input
               id="auth-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="neu-input text-xs w-full p-3 font-bold text-[#26323B] min-h-[44px]"
+              className="med-input text-xs w-full p-3 font-semibold text-slate-900 min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500"
             />
           </div>
 
-          <button type="submit" disabled={loading} className="neu-btn-primary text-xs w-full justify-center min-h-[44px]">
-            {loading ? 'Authenticating…' : mode === 'login' ? 'Sign In to Workstation' : 'Register Account'}
+          <button
+            type="submit"
+            disabled={loading}
+            className="med-btn-primary text-xs w-full justify-center min-h-[44px] font-bold shadow-md focus-visible:ring-2 focus-visible:ring-teal-500"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Authenticating…
+              </span>
+            ) : mode === 'login' ? (
+              `Sign In as ${loginTab.toUpperCase()}`
+            ) : (
+              'Register Account'
+            )}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="pt-2 border-t border-[#D4D9E2] text-center text-xs font-medium text-[#56616B]">
+        {/* Footer Switcher */}
+        <div className="pt-3 border-t border-slate-100 text-center text-xs font-medium text-slate-600">
           {mode === 'login' ? (
             <p>
               Need a patient account?{' '}
@@ -216,7 +271,7 @@ export default function AuthModal({
                   setMode('register');
                   setErrorMsg('');
                 }}
-                className="font-bold text-[#5667D8] hover:underline"
+                className="font-bold text-teal-700 hover:text-teal-900 hover:underline focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md px-1"
               >
                 Register as Patient
               </button>
@@ -230,7 +285,7 @@ export default function AuthModal({
                   setMode('login');
                   setErrorMsg('');
                 }}
-                className="font-bold text-[#5667D8] hover:underline"
+                className="font-bold text-teal-700 hover:text-teal-900 hover:underline focus-visible:ring-2 focus-visible:ring-teal-500 rounded-md px-1"
               >
                 Sign In
               </button>
@@ -241,3 +296,4 @@ export default function AuthModal({
     </div>
   );
 }
+

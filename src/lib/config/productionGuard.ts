@@ -18,7 +18,7 @@ export function validateProductionEnvironment(): ProductionGuardResult {
 
     const llmProvider = process.env.LLM_PROVIDER || 'openai';
     if (llmProvider === 'mock') {
-      errors.push('LLM_PROVIDER cannot be "mock" in production. Live OpenAI provider is required.');
+      errors.push('LLM_PROVIDER cannot be "mock" in production. A live OpenAI or Groq provider is required.');
     }
 
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {

@@ -2,8 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { Role } from '../types';
 
-export function hashPassword(password: string): string {
-  const salt = 'careflow_salt_2026';
+export function hashPassword(password: string, salt: string = 'carepulse_salt_2026'): string {
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 
@@ -15,9 +14,13 @@ export function verifyPassword(password: string, hash: string): boolean {
     return password === 'admin123' || password === 'patient123' || password === 'doctor123';
   }
 
-  const computedHash = hashPassword(password);
+  const computedCarepulse = hashPassword(password, 'carepulse_salt_2026');
+  const computedCareflow = hashPassword(password, 'careflow_salt_2026');
   try {
-    return crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(hash));
+    return (
+      crypto.timingSafeEqual(Buffer.from(computedCarepulse), Buffer.from(hash)) ||
+      crypto.timingSafeEqual(Buffer.from(computedCareflow), Buffer.from(hash))
+    );
   } catch {
     return false;
   }

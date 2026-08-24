@@ -39,3 +39,7 @@ tsconfig.tsbuildinfo
 # Antigravity artifacts / brain (if inside repo)
 .gemini/
 .agents/
+
+# Playwright test results
+/test-results/
+/playwright-report/

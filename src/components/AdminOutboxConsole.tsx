@@ -267,35 +267,37 @@ export default function AdminOutboxConsole() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6" aria-label="Admin Operations Console">
       {msg && (
-        <div className="p-4 rounded-xl bg-[#E6F4F1] border-l-4 border-[#16866D] text-[#16866D] text-xs font-bold">
+        <div className="p-4 rounded-2xl bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-xs">
           {msg}
         </div>
       )}
 
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-[#FEEFEE] border-l-4 border-[#B42318] text-[#B42318] text-xs font-bold">
+        <div className="p-4 rounded-2xl bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold shadow-xs">
           {errorMsg}
         </div>
       )}
 
       {/* Operations Header */}
-      <header className="neu-panel p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D4D9E2] pb-4 mb-4">
+      <header className="med-panel p-6 sm:p-8 bg-white border border-slate-200/90 rounded-3xl shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#5667D8]">Admin Operations Control Center</span>
-            <h1 className="text-2xl font-extrabold text-[#26323B] mt-1">Doctor Management & Outbox Queue Console</h1>
-            <p className="text-xs font-medium text-[#56616B] mt-0.5">
+            <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold inline-block mb-1">
+              Admin Operations Control Center
+            </span>
+            <h1 className="text-2xl font-extrabold text-slate-900">Doctor Management & Outbox Queue Console</h1>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
               Provision clinician profiles, set working hours, process leave requests, and monitor notification outbox delivery.
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <button onClick={fetchDoctors} className="neu-btn-secondary text-xs font-bold min-h-[44px]">
+          <div className="flex items-center space-x-3 shrink-0">
+            <button onClick={fetchDoctors} className="med-btn-secondary text-xs font-bold min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500">
               Refresh Data
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="neu-btn-primary text-xs font-bold min-h-[44px]"
+              className="med-btn-primary text-xs font-bold min-h-[44px] shadow-md focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               + Create Doctor Profile
             </button>
@@ -303,19 +305,23 @@ export default function AdminOutboxConsole() {
         </div>
 
         {/* Section Navigation Tabs */}
-        <nav className="neu-inset p-1.5 flex gap-2">
+        <nav className="bg-slate-100/80 p-1.5 rounded-2xl flex gap-2 border border-slate-200/60" aria-label="Admin console tabs">
           <button
             onClick={() => setActiveTab('doctors')}
-            className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-              activeTab === 'doctors' ? 'neu-btn-active bg-[#EEF2F7]' : 'text-[#56616B] hover:text-[#26323B]'
+            className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+              activeTab === 'doctors'
+                ? 'bg-white text-teal-800 shadow-sm border border-slate-200/80 font-extrabold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
             1. Doctor Management ({doctors.length})
           </button>
           <button
             onClick={() => setActiveTab('outbox')}
-            className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-              activeTab === 'outbox' ? 'neu-btn-active bg-[#EEF2F7]' : 'text-[#56616B] hover:text-[#26323B]'
+            className={`py-3 px-5 rounded-xl text-xs font-bold transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-teal-500 ${
+              activeTab === 'outbox'
+                ? 'bg-white text-teal-800 shadow-sm border border-slate-200/80 font-extrabold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
             2. Notification Outbox Queue

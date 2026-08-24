@@ -4,25 +4,28 @@
 
 @layer base {
   :root {
-    --surface: #E0E5EC;
-    --surface-light: #EEF2F7;
-    --surface-dark: #D4D9E2;
-    --text-primary: #26323B;
-    --text-secondary: #56616B;
-    --text-muted: #66727D;
-    --accent: #5667D8;
-    --accent-hover: #4656C5;
-    --accent-subtle: #E8EAFA;
-    --success: #16866D;
-    --success-bg: #E6F4F1;
-    --warning: #A86B00;
-    --warning-bg: #FFF8EB;
-    --danger: #B42318;
-    --danger-bg: #FEEFEE;
+    --surface: #F8FAFC;
+    --surface-card: #FFFFFF;
+    --surface-light: #F1F5F9;
+    --surface-dark: #E2E8F0;
+    --text-primary: #0F172A;
+    --text-secondary: #334155;
+    --text-muted: #64748B;
+    --accent: #0D9488; /* Calm Medical Teal */
+    --accent-hover: #0F766E;
+    --accent-subtle: #CCFBF1;
+    --brand-primary: #0284C7; /* Sky Blue */
+    --brand-indigo: #4F46E5;
+    --success: #059669;
+    --success-bg: #ECFDF5;
+    --warning: #D97706;
+    --warning-bg: #FFFBEB;
+    --danger: #DC2626;
+    --danger-bg: #FEF2F2;
   }
 
   body {
-    background-color: var(--surface);
+    background-color: #F1F5F9;
     color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     line-height: 1.5;
@@ -32,148 +35,223 @@
   /* Accessibility Focus Rings */
   *:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent) !important;
+    box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--accent) !important;
+    border-radius: 0.5rem;
   }
 }
 
 @layer components {
-  /* Restrained Clinical Neumorphic Cards & Panels */
-  .neu-card {
-    background-color: var(--surface);
-    border-radius: 1rem; /* rounded-2xl */
-    box-shadow: 7px 7px 14px rgba(163, 177, 198, 0.55), -7px -7px 14px rgba(255, 255, 255, 0.6);
+  /* Modern Calm Medical Cards & Panels */
+  .med-card {
+    background-color: #FFFFFF;
+    border-radius: 1.25rem; /* 20px */
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.03), 0 2px 4px -2px rgba(15, 23, 42, 0.03);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .med-card-interactive {
+    background-color: #FFFFFF;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -2px rgba(15, 23, 42, 0.03);
     transition: all 0.2s ease-in-out;
   }
-
-  .neu-card-hover {
-    background-color: var(--surface);
-    border-radius: 1rem;
-    box-shadow: 7px 7px 14px rgba(163, 177, 198, 0.55), -7px -7px 14px rgba(255, 255, 255, 0.6);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .neu-card-hover:hover {
+  .med-card-interactive:hover {
     transform: translateY(-2px);
-    box-shadow: 9px 9px 18px rgba(163, 177, 198, 0.65), -9px -9px 18px rgba(255, 255, 255, 0.7);
+    border-color: rgba(13, 148, 136, 0.4);
+    box-shadow: 0 12px 20px -5px rgba(13, 148, 136, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
   }
 
-  .neu-panel {
-    background-color: var(--surface);
-    border-radius: 1.5rem; /* rounded-3xl */
-    box-shadow: 9px 9px 16px rgba(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.55);
+  .med-panel {
+    background-color: #FFFFFF;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
   }
 
-  /* Inset Neumorphic Input & Container Surfaces */
-  .neu-inset {
-    background-color: var(--surface);
+  /* Glassmorphism & Header styling */
+  .med-header-glass {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  }
+
+  /* Accessible Modern Controls */
+  .med-input {
+    background-color: #F8FAFC;
+    color: #0F172A;
     border-radius: 0.75rem;
-    box-shadow: inset 5px 5px 9px rgba(163, 177, 198, 0.55), inset -5px -5px 9px rgba(255, 255, 255, 0.6);
-  }
-
-  .neu-input {
-    background-color: var(--surface);
-    color: var(--text-primary);
-    border-radius: 0.75rem;
-    box-shadow: inset 4px 4px 7px rgba(163, 177, 198, 0.55), inset -4px -4px 7px rgba(255, 255, 255, 0.65);
-    border: 1px solid transparent;
+    border: 1px solid #CBD5E1;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     transition: all 0.15s ease;
+    min-height: 44px;
   }
-  .neu-input:focus {
-    box-shadow: inset 3px 3px 5px rgba(163, 177, 198, 0.6), inset -3px -3px 5px rgba(255, 255, 255, 0.7);
-    border-color: var(--accent);
+  .med-input:focus {
+    background-color: #FFFFFF;
+    border-color: #0D9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
   }
 
-  /* Neumorphic Interactive Buttons */
-  .neu-btn-primary {
-    background-color: var(--accent);
-    color: #ffffff;
+  .med-btn-primary {
+    background: linear-gradient(135deg, #0D9488 0%, #0284C7 100%);
+    color: #FFFFFF;
     border-radius: 0.75rem;
     padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: 4px 4px 10px rgba(86, 103, 216, 0.35), -3px -3px 8px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-height: 44px;
   }
-  .neu-btn-primary:hover {
-    background-color: var(--accent-hover);
-    box-shadow: 5px 5px 12px rgba(70, 86, 197, 0.4), -4px -4px 10px rgba(255, 255, 255, 0.5);
+  .med-btn-primary:hover {
+    background: linear-gradient(135deg, #0F766E 0%, #0369A1 100%);
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35);
     transform: translateY(-1px);
   }
-  .neu-btn-primary:active {
+  .med-btn-primary:active {
     transform: translateY(0);
-    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.25);
   }
-  .neu-btn-primary:disabled {
-    opacity: 0.6;
+  .med-btn-primary:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
   }
 
-  .neu-btn-secondary {
-    background-color: var(--surface);
-    color: var(--text-primary);
+  .med-btn-secondary {
+    background-color: #FFFFFF;
+    color: #334155;
+    border: 1px solid #CBD5E1;
     border-radius: 0.75rem;
     padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: 5px 5px 10px rgba(163, 177, 198, 0.5), -5px -5px 10px rgba(255, 255, 255, 0.6);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-height: 44px;
   }
-  .neu-btn-secondary:hover {
-    background-color: var(--surface-light);
-    box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6), -6px -6px 12px rgba(255, 255, 255, 0.7);
+  .med-btn-secondary:hover {
+    background-color: #F8FAFC;
+    border-color: #94A3B8;
+    color: #0F172A;
     transform: translateY(-1px);
   }
-  .neu-btn-secondary:active {
-    box-shadow: inset 4px 4px 7px rgba(163, 177, 198, 0.55), inset -4px -4px 7px rgba(255, 255, 255, 0.6);
+  .med-btn-secondary:active {
     transform: translateY(0);
   }
 
-  .neu-btn-active {
-    background-color: var(--surface);
-    color: var(--accent);
+  /* Backward Compatibility Helpers for existing Neu classes */
+  .neu-panel {
+    background-color: #FFFFFF;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+  }
+
+  .neu-card {
+    background-color: #FFFFFF;
+    border-radius: 1rem;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .neu-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
+  }
+
+  .neu-inset {
+    background-color: #F8FAFC;
     border-radius: 0.75rem;
-    box-shadow: inset 4px 4px 7px rgba(163, 177, 198, 0.55), inset -4px -4px 7px rgba(255, 255, 255, 0.65);
+    border: 1px solid #E2E8F0;
+  }
+
+  .neu-input {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    border-radius: 0.75rem;
+    border: 1px solid #CBD5E1;
+    min-height: 44px;
+  }
+  .neu-input:focus {
+    border-color: #0D9488;
+    background-color: #FFFFFF;
+  }
+
+  .neu-btn-primary {
+    background: linear-gradient(135deg, #0D9488 0%, #0284C7 100%);
+    color: #ffffff;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    min-height: 44px;
+  }
+
+  .neu-btn-secondary {
+    background-color: #FFFFFF;
+    color: #334155;
+    border: 1px solid #CBD5E1;
+    border-radius: 0.75rem;
+    min-height: 44px;
+  }
+
+  .neu-btn-active {
+    background-color: #F0FDF4;
+    color: #0D9488;
+    border: 1px solid #99F6E4;
     font-weight: 700;
   }
 
-  /* High Contrast Non-Neumorphic Semantic Status Badges & Alerts */
+  /* High Contrast Semantic Status Badges */
   .clinical-badge-success {
-    background-color: #E6F4F1;
-    color: #16866D;
-    border: 1px solid #9EE2D4;
+    background-color: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
     padding: 0.25rem 0.625rem;
-    border-radius: 0.5rem;
+    border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
   .clinical-badge-warning {
-    background-color: #FFF8EB;
-    color: #A86B00;
-    border: 1px solid #F7D89C;
+    background-color: #FFFBEB;
+    color: #B45309;
+    border: 1px solid #FDE68A;
     padding: 0.25rem 0.625rem;
-    border-radius: 0.5rem;
+    border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
   .clinical-badge-danger {
-    background-color: #FEEFEE;
-    color: #B42318;
-    border: 1px solid #FECDCA;
+    background-color: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #FCA5A5;
     padding: 0.25rem 0.625rem;
-    border-radius: 0.5rem;
+    border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 
   .clinical-badge-neutral {
@@ -181,8 +259,12 @@
     color: #334155;
     border: 1px solid #CBD5E1;
     padding: 0.25rem 0.625rem;
-    border-radius: 0.5rem;
+    border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
   }
 }
+
