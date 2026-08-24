@@ -60,7 +60,7 @@ test('Token AES-256-GCM Encryption & Decryption At Rest', async (t) => {
   });
 
   await t.test('never writes fake fallback tokens to database when refresh token is missing', async () => {
-    const email = `no.refresh.${Date.now()}@carepulse.com`;
+    const email = `no.refresh.${Date.now()}@careflow.com`;
     const user = await registerUser(email, 'Password123!', 'No Refresh User', Role.PATIENT, true);
 
     const origClientId = process.env.GOOGLE_CLIENT_ID;
@@ -118,7 +118,7 @@ test('Google Calendar Integration Status API & Disconnect Endpoint', async (t) =
   let userId: string;
 
   t.before(async () => {
-    const email = `oauth.test.${Date.now()}@carepulse.com`;
+    const email = `oauth.test.${Date.now()}@careflow.com`;
     const user = await registerUser(email, 'Password123!', 'OAuth Test User', Role.PATIENT, true);
     userId = user.id;
     userToken = createSessionToken({ userId: user.id, email: user.email, name: user.name, role: user.role });
@@ -131,7 +131,7 @@ test('Google Calendar Integration Status API & Disconnect Endpoint', async (t) =
 
   await t.test('GET /api/integrations/google-calendar/status returns NOT_CONNECTED for new user', async () => {
     const req = new Request('http://localhost:3000/api/integrations/google-calendar/status', {
-      headers: { Cookie: `carepulse_session=${userToken}` },
+      headers: { Cookie: `careflow_session=${userToken}` },
     });
 
     const res = await getStatusRoute(req);
@@ -160,7 +160,7 @@ test('Google Calendar Integration Status API & Disconnect Endpoint', async (t) =
 
     const req = new Request('http://localhost:3000/api/integrations/google-calendar/disconnect', {
       method: 'POST',
-      headers: { Cookie: `carepulse_session=${userToken}` },
+      headers: { Cookie: `careflow_session=${userToken}` },
     });
 
     const res = await disconnectRoute(req);

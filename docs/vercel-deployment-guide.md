@@ -1,23 +1,23 @@
-# CarePulse — Step-by-Step Vercel Deployment Guide
+# CareFlow — Step-by-Step Vercel Deployment Guide
 
-This guide provides complete instructions for deploying the CarePulse Healthcare Appointment System to **Vercel** with a managed **PostgreSQL database** (e.g. Vercel Postgres, Supabase, or Neon), **Google OAuth 2.0 per-user calendar sync**, **OpenAI clinical summaries**, and **Prisma ORM migrations**.
+This guide provides complete instructions for deploying the CareFlow Healthcare Appointment System to **Vercel** with a managed **PostgreSQL database** (e.g. Vercel Postgres, Supabase, or Neon), **Google OAuth 2.0 per-user calendar sync**, **Groq / Grok AI clinical summaries**, and **Prisma ORM migrations**.
 
 ---
 
 ## 📋 Pre-Deployment Checklist
 
 Before deploying, ensure you have:
-1. A **GitHub account** with access to your repository ([A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)).
+1. A **GitHub account** with access to your repository ([A-Kushwah/CareFlow](https://github.com/A-Kushwah/CareFlow)).
 2. A **Vercel account** ([vercel.com](https://vercel.com)).
 3. A managed **PostgreSQL database URL** (e.g. Vercel Postgres, Supabase, Neon, or Railway).
-4. An **OpenAI API Key** (`sk-proj-...`).
+4. A **Groq / Grok API Key** (`gsk_...`) or OpenAI API key.
 5. A **Google Cloud OAuth 2.0 Client ID & Secret**.
 
 ---
 
 ## Step 1: Set Up Managed PostgreSQL Database
 
-CarePulse uses SQLite locally (`dev.db`) and **PostgreSQL** in production (`prisma/schema.prisma`).
+CareFlow uses SQLite locally (`dev.db`) and **PostgreSQL** in production (`prisma/schema.prisma`).
 
 ### Option A: Vercel Postgres (Recommended)
 1. Go to your Vercel Dashboard > **Storage** > **Create Database** > **Postgres**.
@@ -52,7 +52,7 @@ npx prisma db seed --schema=prisma/schema.prisma
 
 1. Open [Vercel Dashboard](https://vercel.com/new).
 2. Click **Add New... > Project**.
-3. Select your repository: `A-Kushwah/unthinkable-healthcare-appointment`.
+3. Select your repository: `A-Kushwah/CareFlow`.
 4. Configure Framework: Select **Next.js**.
 5. Set **Build and Output Settings**:
    - **Build Command**: `prisma generate --schema=prisma/schema.prisma && next build`
@@ -88,7 +88,7 @@ Under **Settings > Environment Variables** in your Vercel project dashboard, add
 
 ## Step 5: Configure Google Cloud OAuth Redirect URIs
 
-Once Vercel assigns your production domain (e.g. `https://carepulse.vercel.app`):
+Once Vercel assigns your production domain (e.g. `https://careflow.vercel.app`):
 
 1. Go to [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials).
 2. Edit your **OAuth 2.0 Web Application Client**.
@@ -117,7 +117,7 @@ curl -s https://your-app-name.vercel.app/api/health
 curl -s https://your-app-name.vercel.app/api/health/integrations
 
 # Output:
-# {"status":"HEALTHY","integrations":{"openai":true,"googleCalendar":true,"emailProvider":"smtp"}}
+# {"status":"HEALTHY","integrations":{"llmProvider":true,"googleCalendar":true,"emailProvider":"smtp"}}
 ```
 
 ---

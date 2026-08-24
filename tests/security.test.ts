@@ -64,7 +64,7 @@ test('Security Privacy: Patient cannot submit doctor leave', async () => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${token}`,
+      Cookie: `careflow_session=${token}`,
     },
     body: JSON.stringify({
       startDate: '2026-09-20',
@@ -78,12 +78,12 @@ test('Security Privacy: Patient cannot submit doctor leave', async () => {
 });
 
 test('Security Privacy: Doctor receives strictly their own schedule data', async () => {
-  const docUser1 = await registerUser(`doc1.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
+  const docUser1 = await registerUser(`doc1.${Date.now()}@careflow.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
   const docProfile1 = await prisma.doctorProfile.create({
     data: { userId: docUser1.id, specialty: 'Cardiology', consultFee: 150, isTestFixture: true },
   });
 
-  const docUser2 = await registerUser(`doc2.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
+  const docUser2 = await registerUser(`doc2.${Date.now()}@careflow.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
   const docProfile2 = await prisma.doctorProfile.create({
     data: { userId: docUser2.id, specialty: 'Neurology', consultFee: 180, isTestFixture: true },
   });
@@ -125,7 +125,7 @@ test('Security Privacy: Doctor receives strictly their own schedule data', async
 
   const reqDoc1 = new Request('http://localhost:3000/api/appointments', {
     method: 'GET',
-    headers: { Cookie: `carepulse_session=${tokenDoc1}` },
+    headers: { Cookie: `careflow_session=${tokenDoc1}` },
   });
 
   const resDoc1 = await getAppointmentsHandler(reqDoc1);
@@ -137,7 +137,7 @@ test('Security Privacy: Doctor receives strictly their own schedule data', async
 });
 
 test('Security Authorization: Admin can access outbox and admin controls', async () => {
-  const admin = await registerUser(`admin.sec.${Date.now()}@carepulse.com`, 'pass123', 'Admin User', Role.ADMIN, true);
+  const admin = await registerUser(`admin.sec.${Date.now()}@careflow.com`, 'pass123', 'Admin User', Role.ADMIN, true);
   const token = createSessionToken({
     userId: admin.id,
     email: admin.email,
@@ -147,7 +147,7 @@ test('Security Authorization: Admin can access outbox and admin controls', async
 
   const req = new Request('http://localhost:3000/api/admin/metrics', {
     method: 'GET',
-    headers: { Cookie: `carepulse_session=${token}` },
+    headers: { Cookie: `careflow_session=${token}` },
   });
 
   const res = await getAdminMetricsHandler(req);
@@ -212,7 +212,7 @@ test('Security Role Isolation: Server overrides client-supplied patientId with s
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${token}`,
+      Cookie: `careflow_session=${token}`,
     },
     body: JSON.stringify({
       doctorId: docProfile.id,

@@ -1,6 +1,6 @@
 # API Documentation & Endpoint Reference
 
-CarePulse provides a RESTful API layer built with Next.js App Router route handlers. All protected routes require session authentication via HTTP-only signed cookies.
+CareFlow provides a RESTful API layer built with Next.js App Router route handlers. All protected routes require session authentication via HTTP-only signed cookies.
 
 ---
 
@@ -40,12 +40,12 @@ CarePulse provides a RESTful API layer built with Next.js App Router route handl
 ## 2. Key Endpoint Details
 
 ### Admin Doctor Creation: `/api/admin/doctors` (`POST`)
-- **Headers**: Signed admin session cookie (`carepulse_session`).
+- **Headers**: Signed admin session cookie (`careflow_session`).
 - **Payload**:
   ```json
   {
     "name": "Dr. Sarah Jenkins",
-    "email": "sarah.jenkins@carepulse.com",
+    "email": "sarah.jenkins@careflow.com",
     "password": "doctorPassword123",
     "specialty": "Cardiology",
     "consultFee": 150,

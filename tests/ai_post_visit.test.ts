@@ -81,7 +81,7 @@ test('AI Post-Visit: 2-Stage Decoupled Workflow & OpenAI Failure Preserves Notes
   // 1. Create Patient User
   const patient = await prisma.user.create({
     data: {
-      email: `patient.${testRunId}@carepulse.local`,
+      email: `patient.${testRunId}@careflow.local`,
       passwordHash: 'hashed_pw',
       name: 'Proof Patient',
       role: 'PATIENT',
@@ -92,7 +92,7 @@ test('AI Post-Visit: 2-Stage Decoupled Workflow & OpenAI Failure Preserves Notes
   // 2. Create Doctor User & Profile
   const doctorUser = await prisma.user.create({
     data: {
-      email: `doctor.${testRunId}@carepulse.local`,
+      email: `doctor.${testRunId}@careflow.local`,
       passwordHash: 'hashed_pw',
       name: 'Dr. Proof Specialist',
       role: 'DOCTOR',
@@ -232,7 +232,7 @@ test('AI Post-Visit: Prescription Database Unique Constraint & Idempotency', asy
 
   const patient = await prisma.user.create({
     data: {
-      email: `patient.${testRunId}@carepulse.local`,
+      email: `patient.${testRunId}@careflow.local`,
       passwordHash: 'hashed_pw',
       name: 'Constraint Patient',
       role: 'PATIENT',
@@ -242,7 +242,7 @@ test('AI Post-Visit: Prescription Database Unique Constraint & Idempotency', asy
 
   const doctorUser = await prisma.user.create({
     data: {
-      email: `doctor.${testRunId}@carepulse.local`,
+      email: `doctor.${testRunId}@careflow.local`,
       passwordHash: 'hashed_pw',
       name: 'Dr. Constraint',
       role: 'DOCTOR',

@@ -3,6 +3,6 @@ import { NextResponse } from 'next/server';
 export async function POST() {
   const response = NextResponse.json({ message: 'Logged out successfully' });
   response.cookies.delete('careflow_session');
-  response.cookies.delete('carepulse_session');
+  response.cookies.delete('careflow_session');
   return response;
 }

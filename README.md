@@ -1,8 +1,8 @@
-# CarePulse — Healthcare Appointment & Follow-up Manager
+# CareFlow — Healthcare Appointment & Follow-up Manager
 
 > **GitHub Repository**: [https://github.com/A-Kushwah/CareFlow](https://github.com/A-Kushwah/CareFlow) | Mirror: [https://github.com/A-Kushwah/unthinkable-healthcare-appointment](https://github.com/A-Kushwah/unthinkable-healthcare-appointment)
 
-CarePulse is a full-stack healthcare appointment platform built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Neumorphic Clinical UI design system, SQLite for local development, and PostgreSQL for production**. It includes role-based access control for Patients, Doctors, and System Admins, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **AI-assisted clinical intake & post-visit summaries using OpenAI JSON Schema Structured Outputs**.
+CareFlow is a full-stack healthcare appointment platform built with **Next.js 14 (App Router), TypeScript, Prisma ORM, Neumorphic Clinical UI design system, SQLite for local development, and PostgreSQL for production**. It includes role-based access control for Patients, Doctors, and System Admins, double-booking concurrency protection, doctor leave management, transactional outbox retries, Google Calendar synchronization, and **AI-assisted clinical intake & post-visit summaries using JSON Schema Structured Outputs**.
 
 ---
 
@@ -19,7 +19,7 @@ CarePulse is a full-stack healthcare appointment platform built with **Next.js 1
 ## System Design & Architecture Summary
 
 ### 1. Architecture Overview
-CarePulse follows a **Modular Monolith** architecture pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) reside in decoupled modules within a single Next.js application instance. This eliminates microservice network overhead, simplifies hosting, and provides in-memory transactional consistency.
+CareFlow follows a **Modular Monolith** architecture pattern. Domain modules (`booking`, `doctors`, `notifications`, `ai`, `calendar`, `reminders`) reside in decoupled modules within a single Next.js application instance. This eliminates microservice network overhead, simplifies hosting, and provides in-memory transactional consistency.
 
 ### 2. Double-Booking Concurrency Engine & Database Strategy
 - **Local Development (SQLite)**: Double-booking is prevented using transactional overlap checks (`SlotHold` + Prisma `$transaction` interactive locks). The transaction queries active `Appointment` records and unexpired `SlotHold` entries for time overlap `(existingStart < requestedEnd AND existingEnd > requestedStart)`.
@@ -48,7 +48,7 @@ To prevent external API failures (SMTP servers, Google Calendar API) from rollin
 
 ## LLM Usage & Prompt Specifications
 
-CarePulse integrates OpenAI (`gpt-4o-mini`) using **Strict JSON Schema Structured Outputs** to process pre-visit intake symptoms and format post-visit summaries safely.
+CareFlow integrates AI providers (`groq` / `grok`, `openai`) using **Strict JSON Schema Structured Outputs** to process pre-visit intake symptoms and format post-visit summaries safely.
 
 ### 1. Pre-Visit Symptom Summary Prompt
 Used when a patient submits symptoms prior to booking:
@@ -68,9 +68,9 @@ Used after a doctor completes a consultation and authors prescriptions:
 
 ## Google Calendar OAuth 2.0 Integration Setup
 
-CarePulse provides direct per-user Google Calendar synchronization via OAuth 2.0:
+CareFlow provides direct per-user Google Calendar synchronization via OAuth 2.0:
 
-1. **Create Google Cloud Project**: Navigate to [Google Cloud Console](https://console.cloud.google.com/) and create a project named `CarePulse Healthcare`.
+1. **Create Google Cloud Project**: Navigate to [Google Cloud Console](https://console.cloud.google.com/) and create a project named `CareFlow Healthcare`.
 2. **Enable Google Calendar API**: Under **APIs & Services > Library**, search for `Google Calendar API` and enable it.
 3. **Configure OAuth Consent Screen**:
    - Scopes: `https://www.googleapis.com/auth/calendar.events`
@@ -129,7 +129,7 @@ GROQ_TIMEOUT_MS="10000"
 | `LLM_PROVIDER` | `"groq"` | AI adapter mode (`groq` / `grok`, `openai` for live API; `test` for automated tests; `mock` for offline dev). |
 | `GROQ_API_KEY` | `""` | Server-side Groq / Grok API key for fast AI clinical triage & post-visit summaries. |
 | `GROQ_MODEL` | `"llama-3.3-70b-versatile"` | Groq AI model name. |
-| `JWT_SECRET` | `"carepulse-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
+| `JWT_SECRET` | `"careflow-local-secret-key"` | HMAC-SHA256 secret for signed session cookies. |
 
 ---
 
@@ -137,8 +137,8 @@ GROQ_TIMEOUT_MS="10000"
 
 | Role | Email | Password | Access Level |
 | :--- | :--- | :--- | :--- |
-| **System Admin** | `admin@carepulse.com` | `admin123` | Admin Doctor Management & Transactional Outbox Console |
-| **Doctor** | `sarah.jenkins@carepulse.com` | `admin123` | Doctor Consultation Queue, Prescription Form, Patient History & Leave Manager |
+| **System Admin** | `admin@careflow.com` | `admin123` | Admin Doctor Management & Transactional Outbox Console |
+| **Doctor** | `sarah.jenkins@careflow.com` | `admin123` | Doctor Consultation Queue, Prescription Form, Patient History & Leave Manager |
 | **Patient** | `alex.rivera@example.com` | `patient123` | Patient Workspace, Reschedule/Cancel Controls & Doctor Prescriptions Dashboard |
 
 ---
@@ -148,5 +148,3 @@ GROQ_TIMEOUT_MS="10000"
 - [x] **TypeScript Compilation**: `npx tsc --noEmit` passed with 0 errors.
 - [x] **Automated Test Suite**: `npm test` passed **65/65 test scenarios**.
 - [x] **Production Build**: `npm run build` compiled 24 page & API route bundles cleanly.
-- [x] **Neumorphic Clinical UI**: Tactile clay surface, accessible typography, high-contrast badges, and interactive modals.
-

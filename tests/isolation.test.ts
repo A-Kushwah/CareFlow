@@ -37,7 +37,7 @@ test('Data Isolation: Real user-created doctors are NEVER deleted by cleanup', a
 
 test('Data Isolation: Test fixtures clean up and never leak into public catalog', async () => {
   // Create a test fixture doctor
-  const testDocUser = await registerUser(`fixture.doc.${Date.now()}@carepulse.local`, 'pass123', 'Dr. Test Fixture', Role.DOCTOR, true);
+  const testDocUser = await registerUser(`fixture.doc.${Date.now()}@careflow.local`, 'pass123', 'Dr. Test Fixture', Role.DOCTOR, true);
   const testDocProfile = await prisma.doctorProfile.create({
     data: {
       userId: testDocUser.id,

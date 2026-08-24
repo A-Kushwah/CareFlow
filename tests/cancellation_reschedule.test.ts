@@ -10,8 +10,8 @@ import { Role } from '../src/lib/types';
 import { prisma } from '../src/lib/prisma';
 
 test('Booking & Notifications: Dual patient and doctor confirmation emails queued', async () => {
-  const patient = await registerUser(`pt.booking.${Date.now()}@carepulse.local`, 'pass123', 'Patient Dual', Role.PATIENT, true);
-  const docUser = await registerUser(`doc.booking.${Date.now()}@carepulse.local`, 'pass123', 'Dr. Dual', Role.DOCTOR, true);
+  const patient = await registerUser(`pt.booking.${Date.now()}@careflow.local`, 'pass123', 'Patient Dual', Role.PATIENT, true);
+  const docUser = await registerUser(`doc.booking.${Date.now()}@careflow.local`, 'pass123', 'Dr. Dual', Role.DOCTOR, true);
   const doctor = await prisma.doctorProfile.create({
     data: { userId: docUser.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
@@ -50,8 +50,8 @@ test('Booking & Notifications: Dual patient and doctor confirmation emails queue
 });
 
 test('Appointment Cancellation: Patient cancels appointment with dual notifications & calendar delete', async () => {
-  const patient = await registerUser(`pt.cancel.${Date.now()}@carepulse.local`, 'pass123', 'Patient Cancel', Role.PATIENT, true);
-  const docUser = await registerUser(`doc.cancel.${Date.now()}@carepulse.local`, 'pass123', 'Dr. Cancel', Role.DOCTOR, true);
+  const patient = await registerUser(`pt.cancel.${Date.now()}@careflow.local`, 'pass123', 'Patient Cancel', Role.PATIENT, true);
+  const docUser = await registerUser(`doc.cancel.${Date.now()}@careflow.local`, 'pass123', 'Dr. Cancel', Role.DOCTOR, true);
   const doctor = await prisma.doctorProfile.create({
     data: { userId: docUser.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
@@ -63,7 +63,7 @@ test('Appointment Cancellation: Patient cancels appointment with dual notificati
   const patientToken = createSessionToken({ userId: patient.id, email: patient.email, name: patient.name, role: Role.PATIENT });
   const req = new Request(`http://localhost/api/appointments/${appt.id}/cancel`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: `carepulse_session=${patientToken}` },
+    headers: { 'Content-Type': 'application/json', Cookie: `careflow_session=${patientToken}` },
     body: JSON.stringify({ reason: 'Schedule conflict' }),
   });
 
@@ -86,7 +86,7 @@ test('Appointment Cancellation: Patient cancels appointment with dual notificati
   // Test Cancellation Idempotency
   const repeatReq = new Request(`http://localhost/api/appointments/${appt.id}/cancel`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: `carepulse_session=${patientToken}` },
+    headers: { 'Content-Type': 'application/json', Cookie: `careflow_session=${patientToken}` },
     body: JSON.stringify({ reason: 'Schedule conflict' }),
   });
   const repeatRes = await cancelHandler(repeatReq, { params: { id: appt.id } });
@@ -102,8 +102,8 @@ test('Appointment Cancellation: Patient cancels appointment with dual notificati
 });
 
 test('Appointment Rescheduling: Reschedule slot with working hours, leave, overlap checks & idempotency', async () => {
-  const patient = await registerUser(`pt.resched.${Date.now()}@carepulse.local`, 'pass123', 'Patient Resched', Role.PATIENT, true);
-  const docUser = await registerUser(`doc.resched.${Date.now()}@carepulse.local`, 'pass123', 'Dr. Resched', Role.DOCTOR, true);
+  const patient = await registerUser(`pt.resched.${Date.now()}@careflow.local`, 'pass123', 'Patient Resched', Role.PATIENT, true);
+  const docUser = await registerUser(`doc.resched.${Date.now()}@careflow.local`, 'pass123', 'Dr. Resched', Role.DOCTOR, true);
   const doctor = await prisma.doctorProfile.create({
     data: {
       userId: docUser.id,
@@ -135,7 +135,7 @@ test('Appointment Rescheduling: Reschedule slot with working hours, leave, overl
   const patientToken = createSessionToken({ userId: patient.id, email: patient.email, name: patient.name, role: Role.PATIENT });
   const req = new Request(`http://localhost/api/appointments/${appt.id}/reschedule`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: `carepulse_session=${patientToken}` },
+    headers: { 'Content-Type': 'application/json', Cookie: `careflow_session=${patientToken}` },
     body: JSON.stringify({ newStartTime: newStartISO, newEndTime: newEndISO, reason: 'Better time slot' }),
   });
 
@@ -154,7 +154,7 @@ test('Appointment Rescheduling: Reschedule slot with working hours, leave, overl
   // Test Reschedule Idempotency
   const repeatReq = new Request(`http://localhost/api/appointments/${appt.id}/reschedule`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: `carepulse_session=${patientToken}` },
+    headers: { 'Content-Type': 'application/json', Cookie: `careflow_session=${patientToken}` },
     body: JSON.stringify({ newStartTime: newStartISO, newEndTime: newEndISO }),
   });
   const repeatRes = await rescheduleHandler(repeatReq, { params: { id: appt.id } });
@@ -172,17 +172,17 @@ test('Appointment Rescheduling: Reschedule slot with working hours, leave, overl
 });
 
 test('Role Authorization: Doctor cannot access another doctor patient history (403 Forbidden)', async () => {
-  const docUser1 = await registerUser(`doc1.${Date.now()}@carepulse.local`, 'pass123', 'Dr. One', Role.DOCTOR, true);
+  const docUser1 = await registerUser(`doc1.${Date.now()}@careflow.local`, 'pass123', 'Dr. One', Role.DOCTOR, true);
   const docProfile1 = await prisma.doctorProfile.create({
     data: { userId: docUser1.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
 
-  const docUser2 = await registerUser(`doc2.${Date.now()}@carepulse.local`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
+  const docUser2 = await registerUser(`doc2.${Date.now()}@careflow.local`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
   const docProfile2 = await prisma.doctorProfile.create({
     data: { userId: docUser2.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
 
-  const patient = await registerUser(`patient.private.${Date.now()}@carepulse.local`, 'pass123', 'Private Patient', Role.PATIENT, true);
+  const patient = await registerUser(`patient.private.${Date.now()}@careflow.local`, 'pass123', 'Private Patient', Role.PATIENT, true);
 
   // Appointment only with Doctor 2
   const startISO = new Date(Date.now() + 86400000).toISOString();
@@ -193,7 +193,7 @@ test('Role Authorization: Doctor cannot access another doctor patient history (4
   const doc1Token = createSessionToken({ userId: docUser1.id, email: docUser1.email, name: docUser1.name, role: Role.DOCTOR, doctorId: docProfile1.id });
   const req = new Request(`http://localhost/api/patients/${patient.id}/history`, {
     method: 'GET',
-    headers: { Cookie: `carepulse_session=${doc1Token}` },
+    headers: { Cookie: `careflow_session=${doc1Token}` },
   });
 
   const res = await getPatientHistoryHandler(req, { params: { id: patient.id } });

@@ -61,7 +61,7 @@ test.describe('End-to-End CareFlow Appointment Booking & Doctor Verification Flo
 
     // Click Doctor Tab on Login Modal
     await page.click('button[role="tab"]:has-text("Doctor")');
-    await page.fill('#auth-email', 'sarah.jenkins@carepulse.com');
+    await page.fill('#auth-email', 'sarah.jenkins@careflow.com');
     await page.fill('#auth-password', 'doctor123');
     
     // Click "Sign In as DOCTOR" submit button

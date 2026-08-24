@@ -1,6 +1,6 @@
 # Database Schema & Storage Strategy
 
-CarePulse utilizes Prisma ORM for relational data modeling with a dual database deployment strategy: **SQLite** for zero-configuration local development and **PostgreSQL** for production environments.
+CareFlow utilizes Prisma ORM for relational data modeling with a dual database deployment strategy: **SQLite** for zero-configuration local development and **PostgreSQL** for production environments.
 
 ---
 

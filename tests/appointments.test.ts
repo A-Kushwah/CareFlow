@@ -111,7 +111,7 @@ test('3. Doctor Leave Conflict Exclusion', async () => {
 });
 
 test('4. Doctor Session Role Rejection on Booking Endpoint', async () => {
-  const docUser = await registerUser(`doctor.book.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Book', Role.DOCTOR, true);
+  const docUser = await registerUser(`doctor.book.${Date.now()}@careflow.com`, 'pass123', 'Dr. Book', Role.DOCTOR, true);
   const token = createSessionToken({
     userId: docUser.id,
     email: docUser.email,
@@ -123,7 +123,7 @@ test('4. Doctor Session Role Rejection on Booking Endpoint', async () => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${token}`,
+      Cookie: `careflow_session=${token}`,
     },
     body: JSON.stringify({
       doctorId: 'doc-1',

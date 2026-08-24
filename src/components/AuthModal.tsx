@@ -89,11 +89,11 @@ export default function AuthModal({
     setErrorMsg('');
     if (role === Role.ADMIN) {
       setLoginTab('admin');
-      setEmail('admin@carepulse.com');
+      setEmail('admin@careflow.com');
       setPassword('admin123');
     } else if (role === Role.DOCTOR) {
       setLoginTab('doctor');
-      setEmail('sarah.jenkins@carepulse.com');
+      setEmail('sarah.jenkins@careflow.com');
       setPassword('doctor123');
     } else {
       setLoginTab('patient');

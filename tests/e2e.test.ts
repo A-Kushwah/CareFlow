@@ -11,18 +11,18 @@ import { prisma } from '../src/lib/prisma';
 
 test('E2E Primary Workflow: Full Patient-Doctor-Admin Journey', async (t) => {
   const time = Date.now();
-  const doctorEmail = `e2e.doctor.${time}@carepulse.com`;
+  const doctorEmail = `e2e.doctor.${time}@careflow.com`;
   const patientEmail = `e2e.patient.${time}@example.com`;
 
   // Step 1: Admin creates Doctor Profile
-  const adminUser = await registerUser(`admin.${time}@carepulse.local`, 'admin123', 'System Admin', Role.ADMIN, true);
+  const adminUser = await registerUser(`admin.${time}@careflow.local`, 'admin123', 'System Admin', Role.ADMIN, true);
   const adminToken = createSessionToken({ userId: adminUser.id, email: adminUser.email, name: adminUser.name, role: Role.ADMIN });
 
   const docReq = new Request('http://localhost/api/admin/doctors', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${adminToken}`,
+      Cookie: `careflow_session=${adminToken}`,
     },
     body: JSON.stringify({
       email: doctorEmail,

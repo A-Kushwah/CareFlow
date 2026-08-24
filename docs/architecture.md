@@ -1,6 +1,6 @@
 # Architecture & System Design
 
-CarePulse is built as a **Modular Monolith** in Next.js 14 (App Router), TypeScript, Prisma ORM, and Tailwind CSS. The codebase organizes domain logic into explicit modules while running within a single Next.js application instance and database.
+CareFlow is built as a **Modular Monolith** in Next.js 14 (App Router), TypeScript, Prisma ORM, and Tailwind CSS. The codebase organizes domain logic into explicit modules while running within a single Next.js application instance and database.
 
 ---
 

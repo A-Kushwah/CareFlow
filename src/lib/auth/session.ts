@@ -47,7 +47,7 @@ export async function getSession(req?: Request): Promise<SessionPayload | null> 
   if (req) {
     const rawCookie = req.headers.get('cookie') || req.headers.get('Cookie');
     if (rawCookie) {
-      const match = rawCookie.match(/careflow_session=([^;]+)/) || rawCookie.match(/carepulse_session=([^;]+)/);
+      const match = rawCookie.match(/careflow_session=([^;]+)/) || rawCookie.match(/careflow_session=([^;]+)/);
       if (match && match[1]) {
         const sessionPayload = verifySessionToken(match[1]);
         if (sessionPayload) return sessionPayload;
@@ -58,7 +58,7 @@ export async function getSession(req?: Request): Promise<SessionPayload | null> 
   // 2. Otherwise read from Next.js server cookie store
   try {
     const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('careflow_session') || cookieStore.get('carepulse_session');
+    const sessionCookie = cookieStore.get('careflow_session') || cookieStore.get('careflow_session');
     if (!sessionCookie?.value) return null;
     return verifySessionToken(sessionCookie.value);
   } catch {

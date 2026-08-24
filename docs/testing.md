@@ -1,6 +1,6 @@
 # Quality Assurance & Test Verification
 
-CarePulse includes a test suite built with Node.js native runner (`node:test`) and TypeScript (`tsx`). The test suite validates core domain logic, race condition safety, outbox worker recovery, security boundaries, and end-to-end workflows.
+CareFlow includes a test suite built with Node.js native runner (`node:test`) and TypeScript (`tsx`). The test suite validates core domain logic, race condition safety, outbox worker recovery, security boundaries, and end-to-end workflows.
 
 ---
 

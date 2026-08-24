@@ -8,7 +8,7 @@ test('Google Calendar Adapter: Mock Event Creation', async () => {
     patientName: 'Alex Rivera',
     patientEmail: 'alex@example.com',
     doctorName: 'Dr. Sarah Jenkins',
-    doctorEmail: 'sarah@carepulse.com',
+    doctorEmail: 'sarah@careflow.com',
     startTime: new Date().toISOString(),
     endTime: new Date(Date.now() + 1800000).toISOString(),
   };
@@ -24,7 +24,7 @@ test('Google Calendar Adapter: Event Deletion Sync', async () => {
     patientName: 'Alex Rivera',
     patientEmail: 'alex@example.com',
     doctorName: 'Dr. Sarah Jenkins',
-    doctorEmail: 'sarah@carepulse.com',
+    doctorEmail: 'sarah@careflow.com',
     startTime: new Date().toISOString(),
     endTime: new Date(Date.now() + 1800000).toISOString(),
     calendarEventId: 'mock-cal-event-999',

@@ -54,12 +54,12 @@ test('AI Module: Post-Visit Summary does not invent non-existent medications', a
 });
 
 test('AI Module: Security Ownership — Doctor cannot generate post-visit for another doctor appointment', async () => {
-  const docUser1 = await registerUser(`doc1.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
+  const docUser1 = await registerUser(`doc1.ai.${Date.now()}@careflow.com`, 'pass123', 'Dr. One', Role.DOCTOR, true);
   const docProfile1 = await prisma.doctorProfile.create({
     data: { userId: docUser1.id, specialty: 'Dermatology', consultFee: 120, isTestFixture: true },
   });
 
-  const docUser2 = await registerUser(`doc2.ai.${Date.now()}@carepulse.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
+  const docUser2 = await registerUser(`doc2.ai.${Date.now()}@careflow.com`, 'pass123', 'Dr. Two', Role.DOCTOR, true);
   const docProfile2 = await prisma.doctorProfile.create({
     data: { userId: docUser2.id, specialty: 'General', consultFee: 100, isTestFixture: true },
   });
@@ -89,7 +89,7 @@ test('AI Module: Security Ownership — Doctor cannot generate post-visit for an
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${tokenDoc2}`,
+      Cookie: `careflow_session=${tokenDoc2}`,
     },
     body: JSON.stringify({
       appointmentId: appt.id,

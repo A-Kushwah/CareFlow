@@ -8,18 +8,18 @@ import { Role } from '../src/lib/types';
 import { prisma } from '../src/lib/prisma';
 
 test('Admin Doctor Management: Admin creates doctor profile successfully', async () => {
-  const adminUser = await registerUser(`admin.${Date.now()}@carepulse.local`, 'admin123', 'System Admin', Role.ADMIN, true);
+  const adminUser = await registerUser(`admin.${Date.now()}@careflow.local`, 'admin123', 'System Admin', Role.ADMIN, true);
   const adminToken = createSessionToken({ userId: adminUser.id, email: adminUser.email, name: adminUser.name, role: Role.ADMIN });
 
   const req = new Request('http://localhost/api/admin/doctors', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${adminToken}`,
+      Cookie: `careflow_session=${adminToken}`,
     },
     body: JSON.stringify({
       name: 'Dr. Test Admin Created',
-      email: `admin.created.doc.${Date.now()}@carepulse.local`,
+      email: `admin.created.doc.${Date.now()}@careflow.local`,
       password: 'doctorPassword123',
       specialty: 'Dermatology',
       consultFee: 150,
@@ -44,18 +44,18 @@ test('Admin Doctor Management: Admin creates doctor profile successfully', async
 });
 
 test('Admin Doctor Management: Non-admin cannot create doctor profile (403 Forbidden)', async () => {
-  const patientUser = await registerUser(`patient.unauth.${Date.now()}@carepulse.local`, 'pass123', 'Unauthorized Patient', Role.PATIENT, true);
+  const patientUser = await registerUser(`patient.unauth.${Date.now()}@careflow.local`, 'pass123', 'Unauthorized Patient', Role.PATIENT, true);
   const patientToken = createSessionToken({ userId: patientUser.id, email: patientUser.email, name: patientUser.name, role: Role.PATIENT });
 
   const req = new Request('http://localhost/api/admin/doctors', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${patientToken}`,
+      Cookie: `careflow_session=${patientToken}`,
     },
     body: JSON.stringify({
       name: 'Dr. Hacker',
-      email: `hacker.doc.${Date.now()}@carepulse.local`,
+      email: `hacker.doc.${Date.now()}@careflow.local`,
       password: 'password123',
       specialty: 'Cardiology',
       consultFee: 100,
@@ -70,10 +70,10 @@ test('Admin Doctor Management: Non-admin cannot create doctor profile (403 Forbi
 });
 
 test('Admin Doctor Management: Admin updates doctor working hours', async () => {
-  const adminUser = await registerUser(`admin.wh.${Date.now()}@carepulse.local`, 'admin123', 'System Admin', Role.ADMIN, true);
+  const adminUser = await registerUser(`admin.wh.${Date.now()}@careflow.local`, 'admin123', 'System Admin', Role.ADMIN, true);
   const adminToken = createSessionToken({ userId: adminUser.id, email: adminUser.email, name: adminUser.name, role: Role.ADMIN });
 
-  const docUser = await registerUser(`doc.wh.${Date.now()}@carepulse.local`, 'pass123', 'Dr. WH Test', Role.DOCTOR, true);
+  const docUser = await registerUser(`doc.wh.${Date.now()}@careflow.local`, 'pass123', 'Dr. WH Test', Role.DOCTOR, true);
   const docProfile = await prisma.doctorProfile.create({
     data: {
       userId: docUser.id,
@@ -87,7 +87,7 @@ test('Admin Doctor Management: Admin updates doctor working hours', async () => 
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${adminToken}`,
+      Cookie: `careflow_session=${adminToken}`,
     },
     body: JSON.stringify({
       workingHours: [
@@ -111,14 +111,14 @@ test('Admin Doctor Management: Admin updates doctor working hours', async () => 
 });
 
 test('Admin Doctor Management: Patient cannot update doctor schedule (403 Forbidden)', async () => {
-  const patientUser = await registerUser(`patient.wh.${Date.now()}@carepulse.local`, 'pass123', 'Patient', Role.PATIENT, true);
+  const patientUser = await registerUser(`patient.wh.${Date.now()}@careflow.local`, 'pass123', 'Patient', Role.PATIENT, true);
   const patientToken = createSessionToken({ userId: patientUser.id, email: patientUser.email, name: patientUser.name, role: Role.PATIENT });
 
   const req = new Request('http://localhost/api/admin/doctors/fake-doc-id/working-hours', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `carepulse_session=${patientToken}`,
+      Cookie: `careflow_session=${patientToken}`,
     },
     body: JSON.stringify({
       workingHours: [{ dayOfWeek: 1, startTime: '08:00', endTime: '16:00' }],
