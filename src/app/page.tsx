@@ -221,10 +221,12 @@ export default function HomePage() {
       {/* Dynamic Portal View (Gated by Permission) */}
       {activeTab === 'patient' && isTabAllowed('patient', currentUser) && (
         <div className="space-y-8">
-          <PatientDashboard />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Priority #1: Appointment Booking Section */}
+          <div id="booking-section" className="max-w-7xl mx-auto px-4 sm:px-6">
             <DoctorDirectory onSelectSlot={handleSelectSlot} />
           </div>
+          {/* Patient Care Records & Dashboard */}
+          <PatientDashboard />
         </div>
       )}
 

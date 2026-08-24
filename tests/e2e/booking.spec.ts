@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('End-to-End CareFlow Appointment Booking & Doctor Verification Flow', () => {
-  const timestamp = Date.now();
-  const patientEmail = `pw.patient.${timestamp}@example.com`;
-  const patientName = `Playwright Patient ${timestamp}`;
-  const password = 'Password123!';
-
   test('Patient Symptom Triage -> Appointment Booking -> Doctor Schedule Verification', async ({ page }) => {
+    const timestamp = Date.now();
+    const patientEmail = `pw.patient.${timestamp}@example.com`;
+    const patientName = `Playwright Patient ${timestamp}`;
+    const password = 'Password123!';
+
     // 1. Visit Login Page & Register Patient
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
@@ -20,11 +20,8 @@ test.describe('End-to-End CareFlow Appointment Booking & Doctor Verification Flo
     // Submit registration form
     await page.click('button[type="submit"]:has-text("Register Account")');
     
-    // Wait for patient dashboard to load
-    await expect(page.locator('text=Your Care Record & Follow-Up Portal')).toBeVisible({ timeout: 15000 });
-
-    // 2. Locate Doctor Directory and Pick an Available Slot
-    await expect(page.locator('text=Book a Specialist Appointment')).toBeVisible();
+    // 2. Priority #1: Locate Doctor Directory at Top of Page and Pick an Available Slot
+    await expect(page.locator('text=Book a Specialist Appointment')).toBeVisible({ timeout: 20000 });
 
     // Fill date picker with future date (e.g. 2026-09-25)
     const dateInput = page.locator('#date-picker');

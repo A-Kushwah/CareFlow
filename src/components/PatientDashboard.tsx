@@ -246,9 +246,20 @@ export default function PatientDashboard() {
             Doctor-authored prescriptions, visit timelines, and AI explanations organized in one place.
           </p>
         </div>
-        <button onClick={load} className="neu-btn-secondary text-xs font-bold self-start sm:self-auto min-h-[44px]">
-          Refresh Record
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const el = document.getElementById('booking-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="med-btn-primary text-xs font-bold min-h-[44px] px-5 shadow-sm"
+          >
+            📅 Book New Appointment
+          </button>
+          <button onClick={load} className="med-btn-secondary text-xs font-bold min-h-[44px]">
+            Refresh Record
+          </button>
+        </div>
       </header>
 
       {error && (
